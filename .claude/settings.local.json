@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm install:*)",
+      "Bash(npx nest:*)",
+      "Bash(node dist/main.js)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(kill %1)",
+      "Bash(rm -rf dist/)",
+      "Bash(curl -s http://localhost:3001)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 4816 //F)",
+      "Bash(taskkill //PID 30964 //F)",
+      "Bash(curl -s http://localhost:3001/api)",
+      "Bash(mv .env .env.saved)",
+      "Bash(mv .env.bak .env)",
+      "Bash(cp .env .env.saved)",
+      "Bash(sed -i '/^DATABASE_URL/d' .env)",
+      "Bash(taskkill //PID 26744 //F)",
+      "Bash(curl -s http://localhost:3001/api/v1)",
+      "Bash(curl -s -w \"HTTP %{http_code}\" http://localhost:3001/)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:3001/)",
+      "Bash(npx prisma *)",
+      "Bash(node -e ' *)",
+      "Bash(git init *)",
+      "Bash(git symbolic-ref *)"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+dist/
+node_modules/
+.env
+*.js.map
+*.d.ts
+*.tsbuildinfo
+coverage/
+.idea/
+.vscode/
+.qodo/
+
+/generated/prisma
