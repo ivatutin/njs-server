@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { TestModule } from '@modules/_test';
 import { DevModule } from '@modules/_dev';
 import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.module';
+import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
 import { validate } from './config/env.validation';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -18,6 +19,7 @@ import keycloakConfig from './config/keycloak.config';
       validate,
       load: [appConfig, databaseConfig, redisConfig, keycloakConfig],
     }),
+    PrismaModule,
     TestModule,
     DevModule,
     EventBusModule,

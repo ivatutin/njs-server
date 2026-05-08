@@ -18,7 +18,9 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.18",
     "@nestjs/platform-express": "^11.1.18",
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.7.0",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.3.6"
@@ -28,6 +30,7 @@
     "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.24",
     "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
     "chokidar": "^5.0.0",
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",

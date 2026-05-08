@@ -9,4 +9,4 @@ coverage/
 .vscode/
 .qodo/
 
-/generated/prisma
+/src/generated/prisma
