@@ -3,6 +3,7 @@ import { UserRepository } from '../../domain/repositories/user.repository';
 import { User } from '../../domain/entities/user.entity';
 import { UserId } from '../../domain/value-objects/user-id.vo';
 import { Email } from '../../domain/value-objects/email.vo';
+import { Phone } from '../../domain/value-objects/phone.vo';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { EVENT_BUS, EventBus } from '@shared/application/event-bus.interface';
 import { UserMapper } from './user.mapper';
@@ -25,6 +26,15 @@ export class PrismaUserRepository implements UserRepository {
   async findByEmail(email: Email): Promise<User | null> {
     const row = await this.prisma.user.findUnique({
       where: { email: email.toString() },
+    });
+    return row ? UserMapper.toDomain(row) : null;
+  }
+
+  async findByPhone(phone: Phone): Promise<User | null> {
+    const value = phone.getValue();
+    if (value === null) return null;
+    const row = await this.prisma.user.findUnique({
+      where: { phone: value },
     });
     return row ? UserMapper.toDomain(row) : null;
   }
