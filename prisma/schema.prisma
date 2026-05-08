@@ -9,17 +9,19 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid()) @db.Uuid
-  email      String?  @unique
-  phone      String?  @unique
-  keycloakId String   @unique @map("keycloak_id")
-  firstName  String?  @map("first_name")
-  lastName   String?  @map("last_name")
-  roles      String[] @default([])
-  metadata   Json?
-  status     String   @default("active")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String?   @unique
+  phone           String?   @unique
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  keycloakId      String    @unique @map("keycloak_id")
+  firstName       String?   @map("first_name")
+  lastName        String?   @map("last_name")
+  roles           String[]  @default([])
+  metadata        Json?
+  status          String    @default("pending_verification")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("users")
   @@schema("user")

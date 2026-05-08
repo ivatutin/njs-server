@@ -247,14 +247,59 @@ CI/CD pipeline (предпочтительно GitHub Actions).
 ### Доменные особенности модели User
 - `email` и `phone` — **оба опциональные, но уникальные если заполнены** (нативный UNIQUE в Postgres работает с NULL правильно)
 - **Доменный инвариант:** хотя бы один из них должен быть заполнен → `Error('User must have email or phone')`
-- На уровне БД — **CHECK constraint** (defense in depth):
+- На уровне БД — **CHECK constraints** (defense in depth, добавляются вручную в первой миграции):
   ```sql
+  -- 1. Хотя бы один контакт заполнен
   ALTER TABLE "user"."users"
     ADD CONSTRAINT users_email_or_phone_required
     CHECK (email IS NOT NULL OR phone IS NOT NULL);
+
+  -- 2. verified_at можно ставить только если контакт заполнен
+  ALTER TABLE "user"."users"
+    ADD CONSTRAINT users_email_verified_requires_email
+    CHECK (email_verified_at IS NULL OR email IS NOT NULL);
+
+  ALTER TABLE "user"."users"
+    ADD CONSTRAINT users_phone_verified_requires_phone
+    CHECK (phone_verified_at IS NULL OR phone IS NOT NULL);
+
+  -- 3. status='active' требует хотя бы один verified контакт
+  ALTER TABLE "user"."users"
+    ADD CONSTRAINT users_active_requires_verified_contact
+    CHECK (
+      status != 'active'
+      OR email_verified_at IS NOT NULL
+      OR phone_verified_at IS NOT NULL
+    );
   ```
 - `Phone` VO валидирует **E.164** (`/^\+[1-9]\d{7,14}$/`)
-- Метод `User.updateContacts({ email?, phone? })` — изменение контактов с проверкой инварианта
+
+### Жизненный цикл User (с верификацией контактов)
+
+```
+[create] → status: pending_verification
+              ↓ verifyEmail() или verifyPhone()
+           status: active  (хотя бы один verified контакт)
+              ↓ suspend()
+           status: suspended
+              ↓ activate()
+           status: active
+```
+
+**Поля верификации:** `emailVerifiedAt: Date | null`, `phoneVerifiedAt: Date | null`. NULL = не подтверждён, иначе timestamp подтверждения.
+
+**Бизнес-правила:**
+- При `User.create()` пользователь всегда `pending_verification`, контакты не подтверждены
+- При первом `verifyEmail()`/`verifyPhone()` — auto-переход в `active` (эмитится `UserActivatedEvent`)
+- `verifyEmail/verifyPhone` идемпотентны — повторный вызов silent return
+- `updateContacts({ email, phone })` — прямая смена допустима **только** для не-подтверждённых контактов. Для подтверждённых — `throw` (нужно использовать flow `PendingEmailChange`/`PendingPhoneChange` — agregate будет реализован позже)
+- `removeEmail()`/`removePhone()` — нельзя удалить **подтверждённый** контакт, если **другой** контакт не подтверждён (пользователь не может "разлогиниться")
+- `activate()` — нельзя если нет ни одного подтверждённого контакта
+
+**События:**
+- `EmailVerifiedEvent`, `PhoneVerifiedEvent` — при подтверждении
+- `UserActivatedEvent` — при первом переходе из `pending_verification` в `active`
+- `UserCreatedEvent`, `UserUpdatedEvent` — как раньше
 
 ### Конфигурация
 - `APP_PORT=3001`, `APP_PATH_PREFIX=api/v1` (через `.env`)

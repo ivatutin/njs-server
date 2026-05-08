@@ -5,13 +5,18 @@ import { Phone } from '../value-objects/phone.vo';
 import { UserStatus } from '../value-objects/user-status.vo';
 import { UserCreatedEvent } from '../events/user-created.event';
 import { UserUpdatedEvent } from '../events/user-updated.event';
+import { EmailVerifiedEvent } from '../events/email-verified.event';
+import { PhoneVerifiedEvent } from '../events/phone-verified.event';
+import { UserActivatedEvent } from '../events/user-activated.event';
 
 export interface UserProps {
   email: Email | null;
+  phone: Phone;
+  emailVerifiedAt: Date | null;
+  phoneVerifiedAt: Date | null;
   keycloakId: string;
   firstName: string | null;
   lastName: string | null;
-  phone: Phone;
   roles: string[];
   metadata: Record<string, unknown> | null;
   status: UserStatus;
@@ -21,10 +26,12 @@ export interface UserProps {
 
 export class User extends AggregateRoot<UserId> {
   private _email: Email | null;
+  private _phone: Phone;
+  private _emailVerifiedAt: Date | null;
+  private _phoneVerifiedAt: Date | null;
   private _keycloakId: string;
   private _firstName: string | null;
   private _lastName: string | null;
-  private _phone: Phone;
   private _roles: string[];
   private _metadata: Record<string, unknown> | null;
   private _status: UserStatus;
@@ -34,10 +41,12 @@ export class User extends AggregateRoot<UserId> {
   private constructor(id: UserId, props: UserProps) {
     super(id);
     this._email = props.email;
+    this._phone = props.phone;
+    this._emailVerifiedAt = props.emailVerifiedAt;
+    this._phoneVerifiedAt = props.phoneVerifiedAt;
     this._keycloakId = props.keycloakId;
     this._firstName = props.firstName;
     this._lastName = props.lastName;
-    this._phone = props.phone;
     this._roles = props.roles;
     this._metadata = props.metadata;
     this._status = props.status;
@@ -45,13 +54,13 @@ export class User extends AggregateRoot<UserId> {
     this._updatedAt = props.updatedAt;
   }
 
-  /** Фабричный метод — создание нового пользователя */
+  /** Фабричный метод — создание нового пользователя (всегда pending_verification) */
   static create(props: {
     email?: string | null;
+    phone?: string | null;
     keycloakId: string;
     firstName?: string | null;
     lastName?: string | null;
-    phone?: string | null;
     roles?: string[];
     metadata?: Record<string, unknown> | null;
   }): User {
@@ -67,13 +76,15 @@ export class User extends AggregateRoot<UserId> {
 
     const user = new User(id, {
       email,
+      phone,
+      emailVerifiedAt: null,
+      phoneVerifiedAt: null,
       keycloakId: props.keycloakId,
       firstName: props.firstName ?? null,
       lastName: props.lastName ?? null,
-      phone,
       roles: props.roles ?? [],
       metadata: props.metadata ?? null,
-      status: UserStatus.active(),
+      status: UserStatus.pendingVerification(),
       createdAt: now,
       updatedAt: now,
     });
@@ -96,17 +107,34 @@ export class User extends AggregateRoot<UserId> {
 
   // --- Getters ---
   get email(): Email | null { return this._email; }
+  get phone(): Phone { return this._phone; }
+  get emailVerifiedAt(): Date | null { return this._emailVerifiedAt; }
+  get phoneVerifiedAt(): Date | null { return this._phoneVerifiedAt; }
   get keycloakId(): string { return this._keycloakId; }
   get firstName(): string | null { return this._firstName; }
   get lastName(): string | null { return this._lastName; }
-  get phone(): Phone { return this._phone; }
   get roles(): string[] { return [...this._roles]; }
   get metadata(): Record<string, unknown> | null { return this._metadata; }
   get status(): UserStatus { return this._status; }
   get createdAt(): Date { return this._createdAt; }
   get updatedAt(): Date { return this._updatedAt; }
 
+  // --- Verification predicates ---
+  isEmailVerified(): boolean {
+    return this._emailVerifiedAt !== null;
+  }
+
+  isPhoneVerified(): boolean {
+    return this._phoneVerifiedAt !== null;
+  }
+
+  hasAnyVerifiedContact(): boolean {
+    return this.isEmailVerified() || this.isPhoneVerified();
+  }
+
   // --- Business methods ---
+
+  /** Обновление имени/фамилии */
   updateProfile(data: {
     firstName?: string | null;
     lastName?: string | null;
@@ -130,7 +158,10 @@ export class User extends AggregateRoot<UserId> {
     }
   }
 
-  /** Смена контактов с проверкой инварианта "хотя бы один заполнен" */
+  /**
+   * Прямая смена контакта — допустима ТОЛЬКО для не-подтверждённых.
+   * Для подтверждённых нужно использовать отдельный flow (PendingEmailChange/PendingPhoneChange).
+   */
   updateContacts(data: { email?: string | null; phone?: string | null }): void {
     const newEmail = data.email === undefined
       ? this._email
@@ -143,16 +174,28 @@ export class User extends AggregateRoot<UserId> {
       throw new Error('User must have email or phone');
     }
 
-    const changes: string[] = [];
     const currentEmailValue = this._email?.getValue() ?? null;
     const newEmailValue = newEmail?.getValue() ?? null;
+    const emailChanging = data.email !== undefined && currentEmailValue !== newEmailValue;
+    const phoneChanging = data.phone !== undefined && !this._phone.equals(newPhone);
 
-    if (data.email !== undefined && currentEmailValue !== newEmailValue) {
+    if (emailChanging && this.isEmailVerified()) {
+      throw new Error('Cannot directly change verified email, use change request flow');
+    }
+    if (phoneChanging && this.isPhoneVerified()) {
+      throw new Error('Cannot directly change verified phone, use change request flow');
+    }
+
+    const changes: string[] = [];
+
+    if (emailChanging) {
       this._email = newEmail;
+      this._emailVerifiedAt = null;
       changes.push('email');
     }
-    if (data.phone !== undefined && !this._phone.equals(newPhone)) {
+    if (phoneChanging) {
       this._phone = newPhone;
+      this._phoneVerifiedAt = null;
       changes.push('phone');
     }
 
@@ -160,6 +203,105 @@ export class User extends AggregateRoot<UserId> {
       this._updatedAt = new Date();
       this.addDomainEvent(
         new UserUpdatedEvent({ userId: this.id.toString(), changes }),
+      );
+    }
+  }
+
+  /**
+   * Удаление email. Запрещено если:
+   * - email уже null
+   * - phone не задан (нарушит инвариант "хотя бы один контакт")
+   * - email подтверждён, а phone не подтверждён (вариант B: не даём пользователю
+   *   "разлогиниться" оставив только неподтверждённый контакт)
+   */
+  removeEmail(): void {
+    if (this._email === null) {
+      throw new Error('Email is not set');
+    }
+    if (this._phone.getValue() === null) {
+      throw new Error('Cannot remove last contact, user must have email or phone');
+    }
+    if (this.isEmailVerified() && !this.isPhoneVerified()) {
+      throw new Error('Cannot remove verified contact while only unverified one remains');
+    }
+
+    this._email = null;
+    this._emailVerifiedAt = null;
+    this._updatedAt = new Date();
+    this.addDomainEvent(
+      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['email'] }),
+    );
+  }
+
+  /** Удаление phone. Аналогично removeEmail. */
+  removePhone(): void {
+    if (this._phone.getValue() === null) {
+      throw new Error('Phone is not set');
+    }
+    if (this._email === null) {
+      throw new Error('Cannot remove last contact, user must have email or phone');
+    }
+    if (this.isPhoneVerified() && !this.isEmailVerified()) {
+      throw new Error('Cannot remove verified contact while only unverified one remains');
+    }
+
+    this._phone = Phone.create(null);
+    this._phoneVerifiedAt = null;
+    this._updatedAt = new Date();
+    this.addDomainEvent(
+      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['phone'] }),
+    );
+  }
+
+  /** Подтверждение email. Идемпотентно — повторный вызов ничего не делает. */
+  verifyEmail(): void {
+    if (!this._email) {
+      throw new Error('Cannot verify email: email is not set');
+    }
+    if (this._emailVerifiedAt !== null) {
+      return;
+    }
+
+    this._emailVerifiedAt = new Date();
+    this._updatedAt = new Date();
+    this.addDomainEvent(
+      new EmailVerifiedEvent({
+        userId: this.id.toString(),
+        email: this._email.toString(),
+      }),
+    );
+
+    this.activateIfPending();
+  }
+
+  /** Подтверждение phone. Идемпотентно — повторный вызов ничего не делает. */
+  verifyPhone(): void {
+    const phoneValue = this._phone.getValue();
+    if (phoneValue === null) {
+      throw new Error('Cannot verify phone: phone is not set');
+    }
+    if (this._phoneVerifiedAt !== null) {
+      return;
+    }
+
+    this._phoneVerifiedAt = new Date();
+    this._updatedAt = new Date();
+    this.addDomainEvent(
+      new PhoneVerifiedEvent({
+        userId: this.id.toString(),
+        phone: phoneValue,
+      }),
+    );
+
+    this.activateIfPending();
+  }
+
+  /** Перевод в active при первом подтверждении (если был pending_verification) */
+  private activateIfPending(): void {
+    if (this._status.isPendingVerification()) {
+      this._status = UserStatus.active();
+      this.addDomainEvent(
+        new UserActivatedEvent({ userId: this.id.toString() }),
       );
     }
   }
@@ -176,6 +318,9 @@ export class User extends AggregateRoot<UserId> {
   }
 
   activate(): void {
+    if (!this.hasAnyVerifiedContact()) {
+      throw new Error('Cannot activate user without any verified contact');
+    }
     this._status = UserStatus.active();
     this._updatedAt = new Date();
     this.addDomainEvent(
