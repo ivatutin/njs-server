@@ -8,6 +8,7 @@ import { UserUpdatedEvent } from '../events/user-updated.event';
 import { EmailVerifiedEvent } from '../events/email-verified.event';
 import { PhoneVerifiedEvent } from '../events/phone-verified.event';
 import { UserActivatedEvent } from '../events/user-activated.event';
+import { InvalidContactsError } from '../errors/invalid-contacts.error';
 
 export interface UserProps {
   email: Email | null;
@@ -68,7 +69,7 @@ export class User extends AggregateRoot<UserId> {
     const phone = Phone.create(props.phone ?? null);
 
     if (!email && phone.getValue() === null) {
-      throw new Error('User must have email or phone');
+      throw new InvalidContactsError();
     }
 
     const id = UserId.create();
@@ -219,7 +220,7 @@ export class User extends AggregateRoot<UserId> {
       throw new Error('Email is not set');
     }
     if (this._phone.getValue() === null) {
-      throw new Error('Cannot remove last contact, user must have email or phone');
+      throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isEmailVerified() && !this.isPhoneVerified()) {
       throw new Error('Cannot remove verified contact while only unverified one remains');
@@ -239,7 +240,7 @@ export class User extends AggregateRoot<UserId> {
       throw new Error('Phone is not set');
     }
     if (this._email === null) {
-      throw new Error('Cannot remove last contact, user must have email or phone');
+      throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isPhoneVerified() && !this.isEmailVerified()) {
       throw new Error('Cannot remove verified contact while only unverified one remains');
