@@ -108,18 +108,42 @@ export class User extends AggregateRoot<UserId> {
   }
 
   // --- Getters ---
-  get email(): Email | null { return this._email; }
-  get phone(): Phone { return this._phone; }
-  get emailVerifiedAt(): Date | null { return this._emailVerifiedAt; }
-  get phoneVerifiedAt(): Date | null { return this._phoneVerifiedAt; }
-  get keycloakId(): string { return this._keycloakId; }
-  get firstName(): string | null { return this._firstName; }
-  get lastName(): string | null { return this._lastName; }
-  get roles(): string[] { return [...this._roles]; }
-  get metadata(): Record<string, unknown> | null { return this._metadata; }
-  get status(): UserStatus { return this._status; }
-  get createdAt(): Date { return this._createdAt; }
-  get updatedAt(): Date { return this._updatedAt; }
+  get email(): Email | null {
+    return this._email;
+  }
+  get phone(): Phone {
+    return this._phone;
+  }
+  get emailVerifiedAt(): Date | null {
+    return this._emailVerifiedAt;
+  }
+  get phoneVerifiedAt(): Date | null {
+    return this._phoneVerifiedAt;
+  }
+  get keycloakId(): string {
+    return this._keycloakId;
+  }
+  get firstName(): string | null {
+    return this._firstName;
+  }
+  get lastName(): string | null {
+    return this._lastName;
+  }
+  get roles(): string[] {
+    return [...this._roles];
+  }
+  get metadata(): Record<string, unknown> | null {
+    return this._metadata;
+  }
+  get status(): UserStatus {
+    return this._status;
+  }
+  get createdAt(): Date {
+    return this._createdAt;
+  }
+  get updatedAt(): Date {
+    return this._updatedAt;
+  }
 
   // --- Verification predicates ---
   isEmailVerified(): boolean {
@@ -137,10 +161,7 @@ export class User extends AggregateRoot<UserId> {
   // --- Business methods ---
 
   /** Обновление имени/фамилии */
-  updateProfile(data: {
-    firstName?: string | null;
-    lastName?: string | null;
-  }): void {
+  updateProfile(data: { firstName?: string | null; lastName?: string | null }): void {
     const changes: string[] = [];
 
     if (data.firstName !== undefined && data.firstName !== this._firstName) {
@@ -154,9 +175,7 @@ export class User extends AggregateRoot<UserId> {
 
     if (changes.length > 0) {
       this._updatedAt = new Date();
-      this.addDomainEvent(
-        new UserUpdatedEvent({ userId: this.id.toString(), changes }),
-      );
+      this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes }));
     }
   }
 
@@ -165,12 +184,13 @@ export class User extends AggregateRoot<UserId> {
    * Для подтверждённых нужно использовать отдельный flow (PendingEmailChange/PendingPhoneChange).
    */
   updateContacts(data: { email?: string | null; phone?: string | null }): void {
-    const newEmail = data.email === undefined
-      ? this._email
-      : (data.email === null ? null : Email.create(data.email));
-    const newPhone = data.phone === undefined
-      ? this._phone
-      : Phone.create(data.phone);
+    const newEmail =
+      data.email === undefined
+        ? this._email
+        : data.email === null
+          ? null
+          : Email.create(data.email);
+    const newPhone = data.phone === undefined ? this._phone : Phone.create(data.phone);
 
     if (!newEmail && newPhone.getValue() === null) {
       throw new InvalidContactsError();
@@ -182,10 +202,14 @@ export class User extends AggregateRoot<UserId> {
     const phoneChanging = data.phone !== undefined && !this._phone.equals(newPhone);
 
     if (emailChanging && this.isEmailVerified()) {
-      throw new RuleViolationError('Cannot directly change verified email, use change request flow');
+      throw new RuleViolationError(
+        'Cannot directly change verified email, use change request flow',
+      );
     }
     if (phoneChanging && this.isPhoneVerified()) {
-      throw new RuleViolationError('Cannot directly change verified phone, use change request flow');
+      throw new RuleViolationError(
+        'Cannot directly change verified phone, use change request flow',
+      );
     }
 
     const changes: string[] = [];
@@ -203,9 +227,7 @@ export class User extends AggregateRoot<UserId> {
 
     if (changes.length > 0) {
       this._updatedAt = new Date();
-      this.addDomainEvent(
-        new UserUpdatedEvent({ userId: this.id.toString(), changes }),
-      );
+      this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes }));
     }
   }
 
@@ -224,15 +246,15 @@ export class User extends AggregateRoot<UserId> {
       throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isEmailVerified() && !this.isPhoneVerified()) {
-      throw new RuleViolationError('Cannot remove verified contact while only unverified one remains');
+      throw new RuleViolationError(
+        'Cannot remove verified contact while only unverified one remains',
+      );
     }
 
     this._email = null;
     this._emailVerifiedAt = null;
     this._updatedAt = new Date();
-    this.addDomainEvent(
-      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['email'] }),
-    );
+    this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes: ['email'] }));
   }
 
   /** Удаление phone. Аналогично removeEmail. */
@@ -244,15 +266,15 @@ export class User extends AggregateRoot<UserId> {
       throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isPhoneVerified() && !this.isEmailVerified()) {
-      throw new RuleViolationError('Cannot remove verified contact while only unverified one remains');
+      throw new RuleViolationError(
+        'Cannot remove verified contact while only unverified one remains',
+      );
     }
 
     this._phone = Phone.create(null);
     this._phoneVerifiedAt = null;
     this._updatedAt = new Date();
-    this.addDomainEvent(
-      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['phone'] }),
-    );
+    this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes: ['phone'] }));
   }
 
   /** Подтверждение email. Идемпотентно — повторный вызов ничего не делает. */
@@ -302,9 +324,7 @@ export class User extends AggregateRoot<UserId> {
   private activateIfPending(): void {
     if (this._status.isPendingVerification()) {
       this._status = UserStatus.active();
-      this.addDomainEvent(
-        new UserActivatedEvent({ userId: this.id.toString() }),
-      );
+      this.addDomainEvent(new UserActivatedEvent({ userId: this.id.toString() }));
     }
   }
 
@@ -314,9 +334,7 @@ export class User extends AggregateRoot<UserId> {
     }
     this._status = UserStatus.create('suspended');
     this._updatedAt = new Date();
-    this.addDomainEvent(
-      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['status'] }),
-    );
+    this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes: ['status'] }));
   }
 
   activate(): void {
@@ -325,16 +343,12 @@ export class User extends AggregateRoot<UserId> {
     }
     this._status = UserStatus.active();
     this._updatedAt = new Date();
-    this.addDomainEvent(
-      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['status'] }),
-    );
+    this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes: ['status'] }));
   }
 
   updateRoles(roles: string[]): void {
     this._roles = [...roles];
     this._updatedAt = new Date();
-    this.addDomainEvent(
-      new UserUpdatedEvent({ userId: this.id.toString(), changes: ['roles'] }),
-    );
+    this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes: ['roles'] }));
   }
 }

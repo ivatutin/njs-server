@@ -5,9 +5,7 @@ import { UserId } from '../../../domain/value-objects/user-id.vo';
 
 @Injectable()
 export class DeleteUserUseCase implements UseCase<string, void> {
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async execute(userId: string): Promise<void> {
     // Полагаемся на P2025 → UserNotFoundError из mapPrismaError

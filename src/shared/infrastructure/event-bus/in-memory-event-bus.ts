@@ -22,9 +22,7 @@ export class InMemoryEventBus implements EventBus {
       try {
         await handler(event);
       } catch (error) {
-        this.logger.error(
-          `Handler failed for "${event.eventName}": ${error}`,
-        );
+        this.logger.error(`Handler failed for "${event.eventName}": ${error}`);
       }
     }
   }

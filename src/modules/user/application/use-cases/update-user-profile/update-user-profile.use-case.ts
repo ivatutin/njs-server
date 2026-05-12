@@ -8,9 +8,7 @@ import { UpdateUserProfileCommand } from './update-user-profile.command';
 
 @Injectable()
 export class UpdateUserProfileUseCase implements UseCase<UpdateUserProfileCommand, User> {
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async execute(cmd: UpdateUserProfileCommand): Promise<User> {
     const user = await this.userRepo.findById(UserId.fromString(cmd.userId));

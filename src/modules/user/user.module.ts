@@ -42,9 +42,7 @@ export class UserModule implements OnModuleInit {
 
   onModuleInit(): void {
     this.eventBus.subscribe('auth.user-signed-in', (event) =>
-      this.onUserSignedIn.handle(
-        event as unknown as { payload: UserSignedInPayload },
-      ),
+      this.onUserSignedIn.handle(event as unknown as { payload: UserSignedInPayload }),
     );
   }
 }

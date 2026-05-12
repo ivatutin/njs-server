@@ -12,9 +12,7 @@ import { UpdateUserContactsCommand } from './update-user-contacts.command';
 
 @Injectable()
 export class UpdateUserContactsUseCase implements UseCase<UpdateUserContactsCommand, User> {
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async execute(cmd: UpdateUserContactsCommand): Promise<User> {
     const user = await this.userRepo.findById(UserId.fromString(cmd.userId));

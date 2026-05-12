@@ -10,9 +10,7 @@ import { CreateUserCommand } from './create-user.command';
 
 @Injectable()
 export class CreateUserUseCase implements UseCase<CreateUserCommand, User> {
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async execute(cmd: CreateUserCommand): Promise<User> {
     // pre-check уникальности (UX), БД защищена UNIQUE и в случае race условие отловит mapPrismaError

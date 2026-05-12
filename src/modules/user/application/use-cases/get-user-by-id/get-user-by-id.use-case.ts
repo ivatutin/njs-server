@@ -7,9 +7,7 @@ import { UserNotFoundError } from '../../../domain/errors/user-not-found.error';
 
 @Injectable()
 export class GetUserByIdUseCase implements UseCase<string, User> {
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async execute(id: string): Promise<User> {
     const user = await this.userRepo.findById(UserId.fromString(id));

@@ -46,10 +46,7 @@ export class UserMapper {
       firstName: user.firstName,
       lastName: user.lastName,
       roles: user.roles,
-      metadata:
-        user.metadata === null
-          ? Prisma.JsonNull
-          : (user.metadata as Prisma.InputJsonValue),
+      metadata: user.metadata === null ? Prisma.JsonNull : (user.metadata as Prisma.InputJsonValue),
       status: user.status.getValue(),
       updatedAt: user.updatedAt,
     };

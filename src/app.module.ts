@@ -20,9 +20,7 @@ import keycloakConfig from './config/keycloak.config';
 
 @Module({
   controllers: [AppController],
-  providers: [
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
-  ],
+  providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,

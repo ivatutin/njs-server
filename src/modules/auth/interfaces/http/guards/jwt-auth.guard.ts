@@ -25,7 +25,9 @@ export class JwtAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const request = ctx.switchToHttp().getRequest<{ headers: Record<string, string>; user?: unknown }>();
+    const request = ctx
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string>; user?: unknown }>();
     const auth = request.headers['authorization'];
     if (!auth || !/^Bearer\s+\S+$/i.test(auth)) {
       throw new UnauthorizedError('Missing or invalid Authorization header');

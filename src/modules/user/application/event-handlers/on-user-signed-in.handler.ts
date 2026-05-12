@@ -29,9 +29,7 @@ export interface UserSignedInPayload {
 export class OnUserSignedInHandler {
   private readonly logger = new Logger(OnUserSignedInHandler.name);
 
-  constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
-  ) {}
+  constructor(@Inject(USER_REPOSITORY) private readonly userRepo: UserRepository) {}
 
   async handle(event: { payload: UserSignedInPayload }): Promise<void> {
     const { keycloakId, email, roles } = event.payload;

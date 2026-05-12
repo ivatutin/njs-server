@@ -8,9 +8,7 @@ import {
 
 @Injectable()
 export class RefreshTokenUseCase implements UseCase<string, TokenPair> {
-  constructor(
-    @Inject(IDENTITY_PROVIDER) private readonly idp: IdentityProviderPort,
-  ) {}
+  constructor(@Inject(IDENTITY_PROVIDER) private readonly idp: IdentityProviderPort) {}
 
   async execute(refreshToken: string): Promise<TokenPair> {
     return this.idp.refresh(refreshToken);
