@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { IDENTITY_PROVIDER } from './domain/ports/identity-provider.port';
 import { TOKEN_STORE } from './domain/ports/token-store.port';
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
@@ -10,6 +11,8 @@ import { RefreshTokenUseCase } from './application/use-cases/refresh-token/refre
 import { SignOutUseCase } from './application/use-cases/sign-out/sign-out.use-case';
 import { ValidateTokenUseCase } from './application/use-cases/validate-token/validate-token.use-case';
 import { AuthController } from './interfaces/http/auth.controller';
+import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
+import { RolesGuard } from './interfaces/http/guards/roles.guard';
 
 @Module({
   controllers: [AuthController],
@@ -25,6 +28,10 @@ import { AuthController } from './interfaces/http/auth.controller';
     RefreshTokenUseCase,
     SignOutUseCase,
     ValidateTokenUseCase,
+
+    // Global guards (order matters: JWT first, Roles after)
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
   // ValidateTokenUseCase will be consumed by JwtAuthGuard in part 15.4
   exports: [ValidateTokenUseCase],

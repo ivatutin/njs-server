@@ -8,6 +8,7 @@ import { SignInDto } from './dto/sign-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignOutDto } from './dto/sign-out.dto';
 import { TokenPairResponseDto } from './dto/token-pair-response.dto';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -17,12 +18,14 @@ export class AuthController {
     private readonly signOutUC: SignOutUseCase,
   ) {}
 
+  @Public()
   @Post('sign-in')
   @HttpCode(200)
   async signIn(@Body() dto: SignInDto): Promise<TokenPairResponseDto> {
     return this.signInUC.execute(new SignInCommand(dto.email, dto.password));
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Body() dto: RefreshTokenDto): Promise<TokenPairResponseDto> {
