@@ -5,6 +5,7 @@ import { TestModule } from '@modules/_test';
 import { DevModule } from '@modules/_dev';
 import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
+import { HealthModule } from './shared/infrastructure/health/health.module';
 import { UserModule } from './modules/user/user.module';
 import { validate } from './config/env.validation';
 import appConfig from './config/app.config';
@@ -22,6 +23,7 @@ import keycloakConfig from './config/keycloak.config';
     }),
     PrismaModule,
     EventBusModule,
+    HealthModule,
     UserModule,
     TestModule,
     DevModule,
