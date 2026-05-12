@@ -6,6 +6,7 @@ import { TestModule } from '@modules/_test';
 import { DevModule } from '@modules/_dev';
 import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
+import { RedisModule } from './shared/infrastructure/redis/redis.module';
 import { HealthModule } from './shared/infrastructure/health/health.module';
 import { AppLoggerModule } from './shared/infrastructure/logger/logger.module';
 import { AllExceptionsFilter } from './shared/infrastructure/filters/all-exceptions.filter';
@@ -29,6 +30,7 @@ import keycloakConfig from './config/keycloak.config';
     }),
     AppLoggerModule,
     PrismaModule,
+    RedisModule,
     EventBusModule,
     HealthModule,
     UserModule,
