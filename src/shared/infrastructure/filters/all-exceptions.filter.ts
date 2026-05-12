@@ -5,6 +5,8 @@ import { DomainError } from '@shared/domain/errors/domain.error';
 import { EntityNotFoundError } from '@shared/domain/errors/entity-not-found.error';
 import { ConflictError } from '@shared/domain/errors/conflict.error';
 import { RuleViolationError } from '@shared/domain/errors/rule-violation.error';
+import { UnauthorizedError } from '@shared/domain/errors/unauthorized.error';
+import { ForbiddenError } from '@shared/domain/errors/forbidden.error';
 
 interface ErrorResponseBody {
   statusCode: number;
@@ -56,6 +58,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
     message: string | string[];
     details?: unknown;
   } {
+    if (exception instanceof UnauthorizedError) {
+      return {
+        status: HttpStatus.UNAUTHORIZED,
+        error: exception.constructor.name,
+        message: exception.message,
+      };
+    }
+    if (exception instanceof ForbiddenError) {
+      return {
+        status: HttpStatus.FORBIDDEN,
+        error: exception.constructor.name,
+        message: exception.message,
+      };
+    }
     if (exception instanceof EntityNotFoundError) {
       return {
         status: HttpStatus.NOT_FOUND,
