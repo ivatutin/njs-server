@@ -1,4 +1,5 @@
 import { ValueObject } from '@shared/domain/value-object';
+import { RuleViolationError } from '@shared/domain/errors/rule-violation.error';
 
 export class Phone extends ValueObject<string | null> {
   private constructor(value: string | null) {
@@ -11,10 +12,10 @@ export class Phone extends ValueObject<string | null> {
     }
     const trimmed = value.trim();
     if (trimmed.length === 0) {
-      throw new Error('Phone cannot be empty string, use null instead');
+      throw new RuleViolationError('Phone cannot be empty string, use null instead');
     }
     if (!/^\+[1-9]\d{7,14}$/.test(trimmed)) {
-      throw new Error(`Invalid phone (expected E.164, e.g. +79991234567): ${value}`);
+      throw new RuleViolationError(`Invalid phone (expected E.164, e.g. +79991234567): ${value}`);
     }
     return new Phone(trimmed);
   }

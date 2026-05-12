@@ -9,6 +9,7 @@ import { EmailVerifiedEvent } from '../events/email-verified.event';
 import { PhoneVerifiedEvent } from '../events/phone-verified.event';
 import { UserActivatedEvent } from '../events/user-activated.event';
 import { InvalidContactsError } from '../errors/invalid-contacts.error';
+import { RuleViolationError } from '@shared/domain/errors/rule-violation.error';
 
 export interface UserProps {
   email: Email | null;
@@ -172,7 +173,7 @@ export class User extends AggregateRoot<UserId> {
       : Phone.create(data.phone);
 
     if (!newEmail && newPhone.getValue() === null) {
-      throw new Error('User must have email or phone');
+      throw new InvalidContactsError();
     }
 
     const currentEmailValue = this._email?.getValue() ?? null;
@@ -181,10 +182,10 @@ export class User extends AggregateRoot<UserId> {
     const phoneChanging = data.phone !== undefined && !this._phone.equals(newPhone);
 
     if (emailChanging && this.isEmailVerified()) {
-      throw new Error('Cannot directly change verified email, use change request flow');
+      throw new RuleViolationError('Cannot directly change verified email, use change request flow');
     }
     if (phoneChanging && this.isPhoneVerified()) {
-      throw new Error('Cannot directly change verified phone, use change request flow');
+      throw new RuleViolationError('Cannot directly change verified phone, use change request flow');
     }
 
     const changes: string[] = [];
@@ -217,13 +218,13 @@ export class User extends AggregateRoot<UserId> {
    */
   removeEmail(): void {
     if (this._email === null) {
-      throw new Error('Email is not set');
+      throw new RuleViolationError('Email is not set');
     }
     if (this._phone.getValue() === null) {
       throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isEmailVerified() && !this.isPhoneVerified()) {
-      throw new Error('Cannot remove verified contact while only unverified one remains');
+      throw new RuleViolationError('Cannot remove verified contact while only unverified one remains');
     }
 
     this._email = null;
@@ -237,13 +238,13 @@ export class User extends AggregateRoot<UserId> {
   /** Удаление phone. Аналогично removeEmail. */
   removePhone(): void {
     if (this._phone.getValue() === null) {
-      throw new Error('Phone is not set');
+      throw new RuleViolationError('Phone is not set');
     }
     if (this._email === null) {
       throw new InvalidContactsError('Cannot remove last contact, user must have email or phone');
     }
     if (this.isPhoneVerified() && !this.isEmailVerified()) {
-      throw new Error('Cannot remove verified contact while only unverified one remains');
+      throw new RuleViolationError('Cannot remove verified contact while only unverified one remains');
     }
 
     this._phone = Phone.create(null);
@@ -257,7 +258,7 @@ export class User extends AggregateRoot<UserId> {
   /** Подтверждение email. Идемпотентно — повторный вызов ничего не делает. */
   verifyEmail(): void {
     if (!this._email) {
-      throw new Error('Cannot verify email: email is not set');
+      throw new RuleViolationError('Cannot verify email: email is not set');
     }
     if (this._emailVerifiedAt !== null) {
       return;
@@ -279,7 +280,7 @@ export class User extends AggregateRoot<UserId> {
   verifyPhone(): void {
     const phoneValue = this._phone.getValue();
     if (phoneValue === null) {
-      throw new Error('Cannot verify phone: phone is not set');
+      throw new RuleViolationError('Cannot verify phone: phone is not set');
     }
     if (this._phoneVerifiedAt !== null) {
       return;
@@ -309,7 +310,7 @@ export class User extends AggregateRoot<UserId> {
 
   suspend(): void {
     if (!this._status.isActive()) {
-      throw new Error('Can only suspend active users');
+      throw new RuleViolationError('Can only suspend active users');
     }
     this._status = UserStatus.create('suspended');
     this._updatedAt = new Date();
@@ -320,7 +321,7 @@ export class User extends AggregateRoot<UserId> {
 
   activate(): void {
     if (!this.hasAnyVerifiedContact()) {
-      throw new Error('Cannot activate user without any verified contact');
+      throw new RuleViolationError('Cannot activate user without any verified contact');
     }
     this._status = UserStatus.active();
     this._updatedAt = new Date();

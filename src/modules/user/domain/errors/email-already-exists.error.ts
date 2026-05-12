@@ -1,6 +1,6 @@
-import { UserDomainError } from './user-domain.error';
+import { ConflictError } from '@shared/domain/errors/conflict.error';
 
-export class EmailAlreadyExistsError extends UserDomainError {
+export class EmailAlreadyExistsError extends ConflictError {
   constructor() {
     super('Email already exists');
   }

@@ -8,7 +8,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UseFilters,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -16,7 +15,6 @@ import { UpdateUserContactsDto } from './dto/update-user-contacts.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserHttpMapper } from './mappers/user-http.mapper';
-import { UserExceptionFilter } from './filters/user-exception.filter';
 
 import { CreateUserUseCase } from '../../application/use-cases/create-user/create-user.use-case';
 import { CreateUserCommand } from '../../application/use-cases/create-user/create-user.command';
@@ -32,7 +30,6 @@ import { ActivateUserUseCase } from '../../application/use-cases/activate-user/a
 import { DeleteUserUseCase } from '../../application/use-cases/delete-user/delete-user.use-case';
 
 @Controller('users')
-@UseFilters(UserExceptionFilter)
 export class UserController {
   constructor(
     private readonly createUser: CreateUserUseCase,

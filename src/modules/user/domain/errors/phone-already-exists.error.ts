@@ -1,6 +1,6 @@
-import { UserDomainError } from './user-domain.error';
+import { ConflictError } from '@shared/domain/errors/conflict.error';
 
-export class PhoneAlreadyExistsError extends UserDomainError {
+export class PhoneAlreadyExistsError extends ConflictError {
   constructor() {
     super('Phone already exists');
   }

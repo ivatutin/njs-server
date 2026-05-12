@@ -1,4 +1,5 @@
 import { ValueObject } from '@shared/domain/value-object';
+import { RuleViolationError } from '@shared/domain/errors/rule-violation.error';
 import { randomUUID } from 'crypto';
 
 export class UserId extends ValueObject<string> {
@@ -12,7 +13,7 @@ export class UserId extends ValueObject<string> {
 
   static fromString(value: string): UserId {
     if (!value || value.trim().length === 0) {
-      throw new Error('UserId cannot be empty');
+      throw new RuleViolationError('UserId cannot be empty');
     }
     return new UserId(value);
   }

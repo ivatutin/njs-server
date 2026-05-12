@@ -1,4 +1,5 @@
 import { ValueObject } from '@shared/domain/value-object';
+import { RuleViolationError } from '@shared/domain/errors/rule-violation.error';
 
 export type UserStatusType = 'pending_verification' | 'active' | 'suspended' | 'deleted';
 
@@ -10,7 +11,7 @@ export class UserStatus extends ValueObject<UserStatusType> {
   static create(value: UserStatusType): UserStatus {
     const allowed: UserStatusType[] = ['pending_verification', 'active', 'suspended', 'deleted'];
     if (!allowed.includes(value)) {
-      throw new Error(`Invalid user status: ${value}`);
+      throw new RuleViolationError(`Invalid user status: ${value}`);
     }
     return new UserStatus(value);
   }
