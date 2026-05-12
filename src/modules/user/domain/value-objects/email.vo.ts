@@ -7,10 +7,11 @@ export class Email extends ValueObject<string> {
   }
 
   static create(value: string): Email {
-    if (!value || !value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    const normalized = value?.toLowerCase().trim();
+    if (!normalized || !normalized.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       throw new RuleViolationError(`Invalid email: ${value}`);
     }
-    return new Email(value.toLowerCase().trim());
+    return new Email(normalized);
   }
 
   toString(): string {

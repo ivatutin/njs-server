@@ -11,7 +11,8 @@
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\"",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:cov": "jest --coverage --collectCoverageFrom='src/modules/**/*.ts' --collectCoverageFrom='src/shared/**/*.ts' --coveragePathIgnorePatterns='generated|spec'"
   },
   "jest": {
     "moduleFileExtensions": [
