@@ -1,0 +1,26 @@
+# Production overrides. Apply with:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    restart: always
+    # В проде не выставляем порт наружу — доступ только из app-network
+    ports: !reset []
+
+  redis:
+    restart: always
+    ports: !reset []
+
+  keycloak:
+    restart: always
+    # Production mode требует KC_HOSTNAME и pre-build
+    command: start --optimized
+    environment:
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      KC_HTTP_ENABLED: "true"
+
+  app:
+    restart: always
+    # Используем готовый образ из registry (GHCR), не build
+    # image: ghcr.io/${GITHUB_REPOSITORY:-ivatutin/njs-server}:latest
+    # build: !reset null
