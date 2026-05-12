@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Inject, Module, OnModuleInit } from '@nestjs/common';
+import { EVENT_BUS, EventBus } from '@shared/application/event-bus.interface';
 import { USER_REPOSITORY } from './domain/repositories/user.repository';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { UserController } from './interfaces/http/user.controller';
@@ -11,6 +12,10 @@ import { VerifyUserPhoneUseCase } from './application/use-cases/verify-user-phon
 import { SuspendUserUseCase } from './application/use-cases/suspend-user/suspend-user.use-case';
 import { ActivateUserUseCase } from './application/use-cases/activate-user/activate-user.use-case';
 import { DeleteUserUseCase } from './application/use-cases/delete-user/delete-user.use-case';
+import {
+  OnUserSignedInHandler,
+  UserSignedInPayload,
+} from './application/event-handlers/on-user-signed-in.handler';
 
 @Module({
   controllers: [UserController],
@@ -25,7 +30,21 @@ import { DeleteUserUseCase } from './application/use-cases/delete-user/delete-us
     SuspendUserUseCase,
     ActivateUserUseCase,
     DeleteUserUseCase,
+    OnUserSignedInHandler,
   ],
   exports: [],
 })
-export class UserModule {}
+export class UserModule implements OnModuleInit {
+  constructor(
+    @Inject(EVENT_BUS) private readonly eventBus: EventBus,
+    private readonly onUserSignedIn: OnUserSignedInHandler,
+  ) {}
+
+  onModuleInit(): void {
+    this.eventBus.subscribe('auth.user-signed-in', (event) =>
+      this.onUserSignedIn.handle(
+        event as unknown as { payload: UserSignedInPayload },
+      ),
+    );
+  }
+}
