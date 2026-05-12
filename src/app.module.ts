@@ -11,6 +11,7 @@ import { HealthModule } from './shared/infrastructure/health/health.module';
 import { AppLoggerModule } from './shared/infrastructure/logger/logger.module';
 import { AllExceptionsFilter } from './shared/infrastructure/filters/all-exceptions.filter';
 import { UserModule } from './modules/user/user.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { validate } from './config/env.validation';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -34,6 +35,7 @@ import keycloakConfig from './config/keycloak.config';
     EventBusModule,
     HealthModule,
     UserModule,
+    AuthModule,
     TestModule,
     DevModule,
   ],
