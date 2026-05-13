@@ -10,6 +10,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '@modules/auth/interfaces/http/decorators/current-user.decorator';
+import { TokenClaims } from '@modules/auth/domain/ports/identity-provider.port';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdateUserContactsDto } from './dto/update-user-contacts.dto';
@@ -20,6 +22,7 @@ import { UserHttpMapper } from './mappers/user-http.mapper';
 import { CreateUserUseCase } from '../../application/use-cases/create-user/create-user.use-case';
 import { CreateUserCommand } from '../../application/use-cases/create-user/create-user.command';
 import { GetUserByIdUseCase } from '../../application/use-cases/get-user-by-id/get-user-by-id.use-case';
+import { GetUserByKeycloakIdUseCase } from '../../application/use-cases/get-user-by-keycloak-id/get-user-by-keycloak-id.use-case';
 import { UpdateUserProfileUseCase } from '../../application/use-cases/update-user-profile/update-user-profile.use-case';
 import { UpdateUserProfileCommand } from '../../application/use-cases/update-user-profile/update-user-profile.command';
 import { UpdateUserContactsUseCase } from '../../application/use-cases/update-user-contacts/update-user-contacts.use-case';
@@ -37,6 +40,7 @@ export class UserController {
   constructor(
     private readonly createUser: CreateUserUseCase,
     private readonly getUserById: GetUserByIdUseCase,
+    private readonly getUserByKeycloakId: GetUserByKeycloakIdUseCase,
     private readonly updateUserProfile: UpdateUserProfileUseCase,
     private readonly updateUserContacts: UpdateUserContactsUseCase,
     private readonly verifyUserEmail: VerifyUserEmailUseCase,
@@ -69,6 +73,25 @@ export class UserController {
       ),
     );
     return UserHttpMapper.toResponse(user);
+  }
+
+  @Get('me')
+  @ApiOperation({
+    summary: 'Get current authenticated user',
+    description:
+      'Returns the local user record matching the Keycloak sub from the Bearer token. ' +
+      'After first sign-in (which auto-creates the record via UserSignedInEvent), this always returns 200.',
+  })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiResponse({ status: 401, description: 'Missing/invalid Bearer token' })
+  @ApiResponse({
+    status: 404,
+    description:
+      'Local user record not found (would indicate a delivery bug for UserSignedInEvent)',
+  })
+  async me(@CurrentUser() user: TokenClaims): Promise<UserResponseDto> {
+    const found = await this.getUserByKeycloakId.execute(user.sub);
+    return UserHttpMapper.toResponse(found);
   }
 
   @Get(':id')

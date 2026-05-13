@@ -5,6 +5,7 @@ import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.r
 import { UserController } from './interfaces/http/user.controller';
 import { CreateUserUseCase } from './application/use-cases/create-user/create-user.use-case';
 import { GetUserByIdUseCase } from './application/use-cases/get-user-by-id/get-user-by-id.use-case';
+import { GetUserByKeycloakIdUseCase } from './application/use-cases/get-user-by-keycloak-id/get-user-by-keycloak-id.use-case';
 import { UpdateUserProfileUseCase } from './application/use-cases/update-user-profile/update-user-profile.use-case';
 import { UpdateUserContactsUseCase } from './application/use-cases/update-user-contacts/update-user-contacts.use-case';
 import { VerifyUserEmailUseCase } from './application/use-cases/verify-user-email/verify-user-email.use-case';
@@ -23,6 +24,7 @@ import {
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     CreateUserUseCase,
     GetUserByIdUseCase,
+    GetUserByKeycloakIdUseCase,
     UpdateUserProfileUseCase,
     UpdateUserContactsUseCase,
     VerifyUserEmailUseCase,
