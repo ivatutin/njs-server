@@ -32,7 +32,7 @@ npm run start:dev
 
 Application runs at `http://localhost:3001/api/v1`. Swagger UI at `http://localhost:3001/api/v1/docs`.
 
-**Initial Keycloak setup** (one-time, via UI at `http://localhost:8080`) — see [Developer Guide §16](./docs/DEVELOPER_GUIDE.md#16-локальная-разработка).
+**Initial Keycloak setup** (one-time, via UI at `http://localhost:8088`) — see [Developer Guide §16](./docs/DEVELOPER_GUIDE.md#16-локальная-разработка).
 
 ---
 

@@ -759,7 +759,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # Keycloak
-KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_URL=http://localhost:8088
 KEYCLOAK_REALM=app
 KEYCLOAK_CLIENT_ID=app-backend
 KEYCLOAK_CLIENT_SECRET=<changeme>
@@ -1054,7 +1054,7 @@ npm run start:dev
 
 ### Keycloak setup (одноразово)
 
-1. `http://localhost:8080` → admin/admin
+1. `http://localhost:8088` → admin/admin
 2. Create realm `app`
 3. Clients → Create client `app-backend`:
    - Client authentication: **ON**
