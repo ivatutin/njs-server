@@ -41,6 +41,20 @@ services:
     networks:
       - app-network
 
+  mailpit:
+    # Dev-ловушка писем (SMTP для Keycloak): SMTP на 1025, веб-UI/API на 8025.
+    # Профиль `mail` — сервис не поднимается ни в обычном `docker compose up -d`,
+    # ни в проде (там SMTP настраивается на реальный провайдер).
+    # Локально: docker compose up -d mailpit
+    image: axllent/mailpit:v1.31.4
+    container_name: app-mailpit
+    profiles: ['mail']
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - app-network
+
   keycloak:
     # Образ собирается локально: build step (kc.sh build) обязателен для
     # `start --optimized` в docker-compose.prod.yml
