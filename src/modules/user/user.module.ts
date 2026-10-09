@@ -1,9 +1,11 @@
 import { Global, Inject, Module, OnModuleInit } from '@nestjs/common';
 import { EVENT_BUS, EventBus } from '@shared/application/event-bus.interface';
 import { CONTACT_LOOKUP } from '@shared/application/contact-lookup.interface';
+import { USER_PROVISIONING } from '@shared/application/user-provisioning.interface';
 import { USER_REPOSITORY } from './domain/repositories/user.repository';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { PrismaContactLookup } from './infrastructure/persistence/prisma-contact-lookup';
+import { UserProvisioningAdapter } from './infrastructure/provisioning/user-provisioning.adapter';
 import { UserController } from './interfaces/http/user.controller';
 import { CreateUserUseCase } from './application/use-cases/create-user/create-user.use-case';
 import { GetUserByIdUseCase } from './application/use-cases/get-user-by-id/get-user-by-id.use-case';
@@ -19,12 +21,16 @@ import {
   OnUserSignedInHandler,
   UserSignedInPayload,
 } from './application/event-handlers/on-user-signed-in.handler';
+import {
+  EmailVerifiedPayload,
+  OnEmailVerifiedHandler,
+} from './application/event-handlers/on-email-verified.handler';
 
 /**
- * `@Global` здесь осознанно: модуль экспортирует ровно один провайдер —
- * shared-порт `CONTACT_LOOKUP` (проверка занятости телефона), который нужен
- * OTP-контексту. Так другие модули зависят от порта, а не от user-модуля,
- * и прямой импорт модуля модулем не появляется.
+ * `@Global` здесь осознанно: модуль экспортирует shared-порты, которые нужны
+ * другим контекстам — `CONTACT_LOOKUP` (занят ли телефон, для OTP) и
+ * `USER_PROVISIONING` (создать shadow-user, для email-регистрации). Так другие
+ * модули зависят от портов, а не от user-модуля.
  */
 @Global()
 @Module({
@@ -33,6 +39,8 @@ import {
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     PrismaContactLookup,
     { provide: CONTACT_LOOKUP, useExisting: PrismaContactLookup },
+    UserProvisioningAdapter,
+    { provide: USER_PROVISIONING, useExisting: UserProvisioningAdapter },
     CreateUserUseCase,
     GetUserByIdUseCase,
     GetUserByKeycloakIdUseCase,
@@ -44,18 +52,23 @@ import {
     ActivateUserUseCase,
     DeleteUserUseCase,
     OnUserSignedInHandler,
+    OnEmailVerifiedHandler,
   ],
-  exports: [CONTACT_LOOKUP],
+  exports: [CONTACT_LOOKUP, USER_PROVISIONING],
 })
 export class UserModule implements OnModuleInit {
   constructor(
     @Inject(EVENT_BUS) private readonly eventBus: EventBus,
     private readonly onUserSignedIn: OnUserSignedInHandler,
+    private readonly onEmailVerified: OnEmailVerifiedHandler,
   ) {}
 
   onModuleInit(): void {
     this.eventBus.subscribe('auth.user-signed-in', (event) =>
       this.onUserSignedIn.handle(event as unknown as { payload: UserSignedInPayload }),
+    );
+    this.eventBus.subscribe('auth.email-verified', (event) =>
+      this.onEmailVerified.handle(event as unknown as { payload: EmailVerifiedPayload }),
     );
   }
 }
