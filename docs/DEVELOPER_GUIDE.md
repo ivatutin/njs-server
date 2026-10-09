@@ -1150,7 +1150,7 @@ docker compose exec app npx prisma migrate deploy         # миграция в 
 
 - **`docker-compose.yml`** — dev/default:
   - `postgres` 16.15 (init-script создаёт `keycloak` БД и `user` схему)
-  - `redis` — образ **Valkey 8** (`valkey/valkey:8-alpine`, drop-in Redis 7.2)
+  - `redis` — образ **Valkey 8** (`valkey/valkey:8-alpine`, drop-in Redis 7.2); хост-порт — `${REDIS_HOST_PORT:-6379}`
   - `keycloak` — собирается из `docker/keycloak/Dockerfile`, использует postgres, `mem_limit: 1g`
   - `app` (build из локального Dockerfile)
   - Healthchecks для всех, named volumes, bridge network
@@ -1181,6 +1181,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
    ```bash
    docker compose exec app npx prisma migrate deploy
    ```
+6. **Смена движка кэша (Redis 7.4 → Valkey 8).** Старый том с RDB v12 Valkey 8.1 не читает
+   (`Can't handle RDB format version 12`, контейнер падает с `exit 1`). Кэш эфемерен — пересоздать том:
+   ```bash
+   docker compose rm -sf redis && docker volume rm <project>_redis-data
+   ```
+7. **Порт занят другим проектом.** Хост-порты Redis и Keycloak можно сдвинуть без правки compose:
+   `REDIS_HOST_PORT=6380 docker compose up -d`
 
 ### Образ в GHCR
 

@@ -131,6 +131,9 @@ KEYCLOAK_CLIENT_SECRET=<заполнить после настройки realm>
 
 # --- хост Keycloak для prod-режима (твой домен auth) ---
 KC_HOSTNAME=auth.example.com
+
+# --- опционально: базовый образ Keycloak для сборки (если CDN quay.io недоступен) ---
+# KEYCLOAK_IMAGE=docker.io/keycloak/keycloak:26.8.0
 ```
 
 > `DATABASE_URL`, `REDIS_HOST`, `KEYCLOAK_URL` для контейнеров переопределяются внутри `docker-compose.yml` на внутренние имена сервисов (`postgres`, `redis`, `keycloak`) — менять их в `.env` для контейнерного запуска не нужно.

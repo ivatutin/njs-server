@@ -17,7 +17,12 @@
 
 ## Решение
 
-1. **Версия:** `quay.io/keycloak/keycloak:26.8.0` (пин патча).
+1. **Версия:** `26.8.0` (пин патча). Базовый образ берётся из `ARG KEYCLOAK_IMAGE`
+   (по умолчанию `quay.io/keycloak/keycloak:26.8.0`). Проверено на живом стенде: если CDN `quay.io`
+   недоступен из сети Docker, сборка идёт с официального зеркала Docker Hub
+   (`KEYCLOAK_IMAGE=docker.io/keycloak/keycloak:26.8.0`) — подлинность зеркала подтверждена
+   labels образа: `version=26.8.0`, `maintainer=https://www.keycloak.org/`,
+   `org.opencontainers.image.source=https://github.com/keycloak-rel/keycloak-rel`.
 2. **Кастомный образ** `docker/keycloak/Dockerfile` по официальной схеме: стадия `builder` (ENV `KC_HEALTH_ENABLED`, `KC_METRICS_ENABLED`, `KC_DB=postgres` + `RUN kc.sh build`) → копирование `/opt/keycloak/` в чистый образ. Compose собирает его (`build:` + `image: app-keycloak:26.8.0`), поэтому **и** dev, **и** prod используют один и тот же оптимизированный образ.
 3. **Режимы:** dev — `start-dev`, prod — `command: ["start", "--optimized"]` (+ `KC_HOSTNAME`, `KC_HTTP_ENABLED`).
 4. **Bootstrap-админ:** в compose маппим `${KEYCLOAK_ADMIN}` → `KC_BOOTSTRAP_ADMIN_USERNAME`; имена переменных в `.env`/`.env.example`/DEPLOYMENT не меняются.
@@ -37,7 +42,10 @@
 
 - **Образ надо собирать** (`docker compose build keycloak`; в CI — на этапе docker job). Mitigation: сборка одна на весь стек, кэш слоёв.
 - **Версия пинована в двух местах** (Dockerfile + тег `image:` в compose). Mitigation: обновлять вместе, контракт версии зафиксирован в ADR.
-- **Апгрейд 24 → 26 не покрыт автоматическими миграциями БД Keycloak**: при запуске Keycloak сам мигрирует свою схему. Mitigation: бэкап БД `keycloak` перед первым стартом на 26.
+- **Миграция схемы БД.** Keycloak мигрирует её сам при старте: на живом стенде схема прошла путь
+  26.4.0 → 26.4.3 → 26.6.1 → 26.6.2 → 26.7.0 → 26.8.0, realm `app` сохранился без ручных действий.
+  Mitigation: перед первым прод-стартом сделать бэкап БД `keycloak` — откат к 24 после миграции схемы
+  не поддерживается.
 - Management-порт 9000 недоступен снаружи контейнера. Mitigation: при необходимости — `docker exec`/внутренняя сеть, наружу не выставляем осознанно.
 
 ## Альтернативы
