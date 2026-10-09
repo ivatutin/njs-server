@@ -180,6 +180,8 @@ describe('DomainError.code', () => {
         'OtpInvalid',
         'OtpRateLimited',
         'OtpTooManyAttempts',
+        'PasswordPolicyViolation',
+        'TermsNotAccepted',
         'UserNotFound',
       ]);
     });
