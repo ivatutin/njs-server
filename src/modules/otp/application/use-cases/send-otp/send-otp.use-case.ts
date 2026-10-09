@@ -6,7 +6,7 @@ import { OtpChallenge } from '../../../domain/entities/otp-challenge.entity';
 import { generateOtpCode } from '../../../domain/otp-code';
 import { OTP_CODE_LENGTH, OTP_COOLDOWN_SECONDS, OtpChannel } from '../../../domain/otp-policy';
 import { maskPhone } from '../../../domain/target-mask';
-import { ContactAlreadyExistsError } from '../../../domain/errors/contact-already-exists.error';
+import { ContactAlreadyExistsError } from '@shared/domain/errors/contact-already-exists.error';
 import { OtpRateLimitedError } from '../../../domain/errors/otp-rate-limited.error';
 import {
   OTP_CHALLENGE_STORE,

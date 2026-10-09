@@ -1,7 +1,7 @@
 import { ContactLookup } from '../../../src/shared/application/contact-lookup.interface';
 import { SendOtpCommand } from '../../../src/modules/otp/application/use-cases/send-otp/send-otp.command';
 import { SendOtpUseCase } from '../../../src/modules/otp/application/use-cases/send-otp/send-otp.use-case';
-import { ContactAlreadyExistsError } from '../../../src/modules/otp/domain/errors/contact-already-exists.error';
+import { ContactAlreadyExistsError } from '../../../src/shared/domain/errors/contact-already-exists.error';
 import { OtpRateLimitedError } from '../../../src/modules/otp/domain/errors/otp-rate-limited.error';
 import { OtpChallengeStore } from '../../../src/modules/otp/domain/ports/otp-challenge-store.port';
 import { OtpHasher } from '../../../src/modules/otp/domain/ports/otp-hasher.port';
