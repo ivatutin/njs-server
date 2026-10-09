@@ -13,13 +13,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: Install dependencies
-        # Fallback to npm install: the lock file is generated on Windows
-        # and may diverge from Linux-resolved optional native deps.
-        run: npm ci --include=optional || npm install --no-audit --no-fund
+        run: npm ci --include=optional
 
       - name: Generate Prisma client
         run: npx prisma generate
