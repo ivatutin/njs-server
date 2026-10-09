@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { DevService } from './service';
-import { Public } from '@modules/auth/interfaces/http/decorators/public.decorator';
+import { Public } from '@shared/interfaces/http/decorators/public.decorator';
 
 @Controller('dev') // Все запросы пойдут на /dev
 @Public()

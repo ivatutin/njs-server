@@ -1,3 +1,5 @@
+import { TokenClaims } from '@shared/domain/token-claims';
+
 /** DI token for the identity provider adapter (Keycloak in our case). */
 export const IDENTITY_PROVIDER = Symbol('IDENTITY_PROVIDER');
 
@@ -8,12 +10,8 @@ export interface TokenPair {
   expiresIn: number;
 }
 
-export interface TokenClaims {
-  /** Stable user id assigned by the identity provider. */
-  sub: string;
-  email: string;
-  roles: string[];
-}
+/** Ре-экспорт: тип переехал в shared, импортёры продолжают работать. */
+export type { TokenClaims };
 
 /**
  * Port for external identity provider.

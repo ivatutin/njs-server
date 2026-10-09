@@ -9,7 +9,7 @@ import { SignInDto } from './dto/sign-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignOutDto } from './dto/sign-out.dto';
 import { TokenPairResponseDto } from './dto/token-pair-response.dto';
-import { Public } from './decorators/public.decorator';
+import { Public } from '@shared/interfaces/http/decorators/public.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')

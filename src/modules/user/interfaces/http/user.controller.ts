@@ -10,8 +10,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '@modules/auth/interfaces/http/decorators/current-user.decorator';
-import { TokenClaims } from '@modules/auth/domain/ports/identity-provider.port';
+import { CurrentUser } from '@shared/interfaces/http/decorators/current-user.decorator';
+import { TokenClaims } from '@shared/domain/token-claims';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdateUserContactsDto } from './dto/update-user-contacts.dto';

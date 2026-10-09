@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenError } from '@shared/domain/errors/forbidden.error';
-import { TokenClaims } from '../../../domain/ports/identity-provider.port';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { TokenClaims } from '@shared/domain/token-claims';
+import { ROLES_KEY } from '@shared/interfaces/http/decorators/roles.decorator';
 
 /**
  * Global guard that runs after JwtAuthGuard. If endpoint is marked with

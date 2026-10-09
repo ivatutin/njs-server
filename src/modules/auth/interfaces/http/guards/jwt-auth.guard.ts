@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UnauthorizedError } from '@shared/domain/errors/unauthorized.error';
 import { ValidateTokenUseCase } from '../../../application/use-cases/validate-token/validate-token.use-case';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { IS_PUBLIC_KEY } from '@shared/interfaces/http/decorators/public.decorator';
 
 /**
  * Global guard. Reads Authorization: Bearer <jwt>, validates via

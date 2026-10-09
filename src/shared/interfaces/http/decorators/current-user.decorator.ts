@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { TokenClaims } from '../../../domain/ports/identity-provider.port';
+import { TokenClaims } from '@shared/domain/token-claims';
 
 /**
  * Param decorator that returns the authenticated user's token claims
