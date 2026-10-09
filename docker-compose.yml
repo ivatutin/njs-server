@@ -29,7 +29,10 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6379:6379"
+      # Хост-порт переопределяется, если 6379 занят (например, другим проектом):
+      #   REDIS_HOST_PORT=6380 docker compose up -d
+      # Внутри compose-сети приложение ходит на redis:6379 независимо от маппинга
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -44,6 +47,10 @@ services:
     build:
       context: .
       dockerfile: docker/keycloak/Dockerfile
+      args:
+        # Переопределяемо, если CDN quay.io недоступен из вашей сети:
+        #   KEYCLOAK_IMAGE=docker.io/keycloak/keycloak:26.8.0
+        KEYCLOAK_IMAGE: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.8.0}
     image: app-keycloak:26.8.0
     container_name: app-keycloak
     command: start-dev
