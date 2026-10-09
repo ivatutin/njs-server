@@ -137,7 +137,9 @@ src/
 │   │   ├── application/
 │   │   ├── infrastructure/
 │   │   └── interfaces/
-│   └── auth/        ← всё про Auth
+│   ├── auth/        ← всё про Auth (Keycloak, guards, token blacklist)
+│   │   └── ...
+│   └── otp/         ← всё про OTP-челленджи (Phase 0 auth-suite)
 │       └── ...
 └── shared/          ← technical kernel, общее для всех модулей
 ```
@@ -173,6 +175,7 @@ project/
 │   │   │   ├── domain-event.ts        # интерфейс события
 │   │   │   └── errors/                # базовые ошибки → HTTP коды
 │   │   │       ├── domain.error.ts          # abstract
+│   │   │       ├── error-code.ts            # реестр кодов контракта (ErrorCode)
 │   │   │       ├── rule-violation.error.ts  # → 422
 │   │   │       ├── entity-not-found.error.ts # → 404
 │   │   │       ├── conflict.error.ts        # → 409
@@ -180,7 +183,10 @@ project/
 │   │   │       └── forbidden.error.ts       # → 403
 │   │   ├── application/
 │   │   │   ├── use-case.interface.ts        # UseCase<TCmd, TResult>
-│   │   │   └── event-bus.interface.ts       # PORT для event bus
+│   │   │   ├── event-bus.interface.ts       # PORT для event bus
+│   │   │   └── contact-lookup.interface.ts  # PORT: занят ли телефон (реализует user-модуль)
+│   │   ├── interfaces/
+│   │   │   └── http/decorators/             # @Public, @Roles, @CurrentUser (shared-метки)
 │   │   └── infrastructure/
 │   │       ├── prisma/                # @Global PrismaService
 │   │       ├── redis/                 # @Global Redis client (ioredis)
@@ -207,19 +213,38 @@ project/
 │   │   │   │   └── http/             # controller, DTOs (Zod), mapper
 │   │   │   └── user.module.ts
 │   │   │
-│   │   └── auth/
+│   │   ├── auth/
+│   │   │   ├── domain/
+│   │   │   │   ├── ports/            # IdentityProviderPort, TokenStorePort
+│   │   │   │   ├── events/           # UserSignedInEvent
+│   │   │   │   └── errors/           # InvalidCredentials, InvalidToken
+│   │   │   ├── application/
+│   │   │   │   └── use-cases/        # SignIn, Refresh, SignOut, ValidateToken
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── keycloak/         # HTTP client + JWT verifier + adapter
+│   │   │   │   └── redis/            # RedisTokenStore (blacklist)
+│   │   │   ├── interfaces/
+│   │   │   │   └── http/             # controller, guards
+│   │   │   └── auth.module.ts
+│   │   │
+│   │   └── otp/                      # Phase 0 auth-suite: OTP-челленджи
 │   │       ├── domain/
-│   │       │   ├── ports/            # IdentityProviderPort, TokenStorePort
-│   │       │   ├── events/           # UserSignedInEvent
-│   │       │   └── errors/           # InvalidCredentials, InvalidToken
+│   │       │   ├── entities/otp-challenge.entity.ts  # TTL 5 мин + лимит попыток
+│   │       │   ├── otp-policy.ts     # цифры контракта: 6 цифр, TTL, лимиты
+│   │       │   ├── otp-code.ts, target-mask.ts
+│   │       │   ├── errors/           # OtpInvalid, OtpExpired, OtpTooManyAttempts, OtpRateLimited
+│   │       │   └── ports/            # OtpChallengeStore, OtpHasher, OtpRateLimiter, SmsSender, VerificationTokenIssuer
 │   │       ├── application/
-│   │       │   └── use-cases/        # SignIn, Refresh, SignOut, ValidateToken
+│   │       │   └── use-cases/        # SendOtp, VerifyOtp
 │   │       ├── infrastructure/
-│   │       │   ├── keycloak/         # HTTP client + JWT verifier + adapter
-│   │       │   └── redis/            # RedisTokenStore (blacklist)
+│   │       │   ├── persistence/      # RedisOtpChallengeStore
+│   │       │   ├── hashing/          # Argon2OtpHasher (argon2id)
+│   │       │   ├── rate-limit/       # RedisOtpRateLimiter (cooldown + 2 счётчика)
+│   │       │   ├── tokens/           # RedisVerificationTokenIssuer (GETDEL, 10 мин)
+│   │       │   └── sms/              # ConsoleSmsSender (dev)
 │   │       ├── interfaces/
-│   │       │   └── http/             # controller, guards, decorators
-│   │       └── auth.module.ts
+│   │       │   └── http/             # controller (/auth/otp), DTOs, mapper
+│   │       └── otp.module.ts
 │   │
 │   └── generated/
 │       └── prisma/                   # сгенерированный Prisma client (gitignored)

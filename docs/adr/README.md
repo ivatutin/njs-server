@@ -76,3 +76,4 @@ External resources.
 | [0008](./0008-node-24-lts-and-strict-npm-ci.md) | Node.js 24 LTS + строгий `npm ci` | Accepted |
 | [0009](./0009-keycloak-26-optimized-image.md) | Keycloak 26 и оптимизированный образ (build step) | Accepted |
 | [0010](./0010-valkey-over-redis.md) | Valkey 8 вместо Redis 7 | Accepted |
+| [0011](./0011-otp-storage-hashing-and-limits.md) | OTP: Redis, argon2id, лимиты, anti-enumeration | Accepted |

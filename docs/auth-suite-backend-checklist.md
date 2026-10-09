@@ -62,15 +62,15 @@ export abstract class DomainError extends Error {
 Инфраструктура. От неё зависят phone-регистрация, phone-вход, verify-contact и весь Phase 4.
 
 **Инфра:**
-- [ ] `OtpModule` (NestJS): challenge в Redis, TTL ≤ 5 мин
-- [ ] хеш кода argon2id (не хранить plaintext), max 5 попыток → lock
-- [ ] rate-limit: per-target 3/час + per-IP 10/час + cooldown 60 c
-- [ ] SMS-абстракция `SmsProvider` (интерфейс) + dev-реализация (лог в консоль / Mailpit), prod — Twilio/SMS.ru
-- [ ] маскирование target для ответа: `+7 (***) ***-12-34`
+- [x] `OtpModule` (NestJS): challenge в Redis, TTL ≤ 5 мин
+- [x] хеш кода argon2id (не хранить plaintext), max 5 попыток → lock
+- [x] rate-limit: per-target 3/час + per-IP 10/час + cooldown 60 c
+- [x] SMS-абстракция (порт `SmsSender`) + dev-реализация (лог в консоль), prod — Twilio/SMS.ru тем же токеном
+- [x] маскирование target для ответа: формат контракта `+7 (***) ***-12-34`, видимы реальные последние 4 цифры
 
 **Эндпоинты:**
 
-- [ ] `POST /auth/otp/send` — public
+- [x] `POST /auth/otp/send` — public
   - body: `{ channel: 'phone', target, purpose }`
   - `purpose ∈ 'sign-up' | 'sign-in' | 'verify-contact' | 'change-contact-old' | 'change-contact-new' | 'set-password'`
   - 200 → `OtpChallengeResponse`:
@@ -81,17 +81,33 @@ export abstract class DomainError extends Error {
   - `422 OtpRateLimited` + `details: { retryAfter: number /* сек */ }`
   - **anti-enum:** `purpose='sign-in'` → **всегда 200**, даже если target не существует (реально SMS не шлём)
 
-- [ ] `POST /auth/otp/verify` — public
+- [x] `POST /auth/otp/verify` — public
   - body: `{ challengeId, code }`
   - 200 → `{ challengeId, verified: true, verificationToken }`
-  - `verificationToken` — короткоживущий (JWT/Redis), одноразовый, привязан к `{ target, purpose }`; его предъявляют в sign-up/sign-in/set-password
+  - `verificationToken` — короткоживущий (Redis, 10 мин), одноразовый (`GETDEL`), привязан к `{ target, purpose }`; его предъявляют в sign-up/sign-in/set-password
   - `422 OtpInvalid` — неверный код (attempts++)
   - `422 OtpExpired` — challenge не найден / TTL истёк
   - `422 OtpTooManyAttempts` — ≥5 неверных → challenge locked, нужен resend
 
-**Коды для реестра:** `OtpInvalid`, `OtpExpired`, `OtpTooManyAttempts`, `OtpRateLimited`, `ContactAlreadyExists` — уже во фронтовом `error-codes.ts`.
+**Коды для реестра:** `OtpInvalid`, `OtpExpired`, `OtpTooManyAttempts`, `OtpRateLimited` — уже были в реестре (v1.0), новых кодов не потребовалось; `ContactAlreadyExists` переиспользован. Для `details.retryAfter` у `DomainError` появилось поле `details`.
 
-**Acceptance Phase 0:** `curl` send → приходит `challengeId` + код в лог (dev SMS); verify правильным кодом → `verificationToken`; verify неверным 5 раз → `OtpTooManyAttempts`. После этого фронт снимает MSW-мок с `/auth/otp/*`.
+**Acceptance Phase 0 — ✅ пройден на живом стеке (09.10.2026):**
+```
+A1 send (sign-up, новый номер)     → 200 { challengeId, target '+7 (***) ***-00-01', cooldownSeconds 60, codeLength 6 }
+   код из лога dev-SMS             → 798316 (plaintext только в dev-логе)
+A2 verify неверным кодом           → 422 OtpInvalid
+A3 verify верным кодом             → 200 { verified: true, verificationToken: 'yPnRL-X2sb…' }
+B1 resend в пределах cooldown      → 422 OtpRateLimited, details { retryAfter: 58 }
+C2–C5 неверный код (4 раза)        → 422 OtpInvalid
+C6 5-я неудачная попытка           → 422 OtpTooManyAttempts (челлендж залочен)
+D1 sign-in для несуществующего     → 200, новой строки dev-SMS нет (anti-enumeration)
+F1 sign-up на занятый номер        → 409 ContactAlreadyExists
+F2 sign-in на существующий номер   → 200 + строка dev-SMS (+1)
+```
+
+**Реализация:** `src/modules/otp/*` (domain/application/infrastructure/interfaces) + ADR-0011; проверка занятости номера — shared-порт `CONTACT_LOOKUP` (реализация в user-контексте).
+
+**Осталось вне этого репозитория:** фронт снимает MSW-мок с `/auth/otp/*` (процедура — в `auth-roadmap.md` § «Когда уходим от MSW»).
 
 ---
 
