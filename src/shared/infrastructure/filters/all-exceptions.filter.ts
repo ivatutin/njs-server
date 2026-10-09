@@ -19,7 +19,8 @@ interface ErrorResponseBody {
 
 /**
  * Глобальный exception filter:
- * - DomainError-наследники → семантические HTTP коды (404/409/422)
+ * - DomainError-наследники → семантические HTTP коды (401/403/404/409/422),
+ *   в поле `error` — контрактный код `DomainError.code` (ADR-0012)
  * - NestJS HttpException → пробрасываем как есть (400 от Zod, ParseUUID, etc.)
  * - Неизвестные ошибки → 500 без раскрытия деталей в response
  *
@@ -58,47 +59,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     message: string | string[];
     details?: unknown;
   } {
-    if (exception instanceof UnauthorizedError) {
-      return {
-        status: HttpStatus.UNAUTHORIZED,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
-    }
-    if (exception instanceof ForbiddenError) {
-      return {
-        status: HttpStatus.FORBIDDEN,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
-    }
-    if (exception instanceof EntityNotFoundError) {
-      return {
-        status: HttpStatus.NOT_FOUND,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
-    }
-    if (exception instanceof ConflictError) {
-      return {
-        status: HttpStatus.CONFLICT,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
-    }
-    if (exception instanceof RuleViolationError) {
-      return {
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
-    }
     if (exception instanceof DomainError) {
-      return {
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        error: exception.constructor.name,
-        message: exception.message,
-      };
+      return this.classifyDomainError(exception);
     }
     if (exception instanceof HttpException) {
       const resp = exception.getResponse();
@@ -123,6 +85,33 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: 'InternalServerError',
       message: exception instanceof Error ? exception.message : String(exception),
     };
+  }
+
+  /**
+   * DomainError → HTTP статус по базовому классу, а `error` — контрактный код
+   * (`DomainError.code`), а не имя класса: клиент матчит ошибки по этой строке
+   * (ADR-0012, реестр `ErrorCode`).
+   */
+  private classifyDomainError(exception: DomainError): {
+    status: number;
+    error: string;
+    message: string;
+  } {
+    return {
+      status: this.domainErrorStatus(exception),
+      error: exception.code,
+      message: exception.message,
+    };
+  }
+
+  private domainErrorStatus(exception: DomainError): number {
+    if (exception instanceof UnauthorizedError) return HttpStatus.UNAUTHORIZED;
+    if (exception instanceof ForbiddenError) return HttpStatus.FORBIDDEN;
+    if (exception instanceof EntityNotFoundError) return HttpStatus.NOT_FOUND;
+    if (exception instanceof ConflictError) return HttpStatus.CONFLICT;
+    if (exception instanceof RuleViolationError) return HttpStatus.UNPROCESSABLE_ENTITY;
+    // любая другая DomainError → 422
+    return HttpStatus.UNPROCESSABLE_ENTITY;
   }
 
   private log(
