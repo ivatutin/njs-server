@@ -234,6 +234,10 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
 2. Создай realm `app` (должен совпадать с `KEYCLOAK_REALM`).
 3. Создай confidential client `app-backend` (`KEYCLOAK_CLIENT_ID`):
    - Client authentication: **On**;
+   - **Service accounts: On** — нужны для Admin API (создание пользователей, события);
+   - в Client roles → `realm-management` выдай service account'у
+     `manage-users`, `view-users`, `view-events`;
+   - Direct access grants: **On** (используется `POST /auth/sign-in`);
    - Service accounts / нужные flows — по требованиям модуля auth.
 4. Скопируй из вкладки **Credentials → Client secret**.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
@@ -241,6 +245,22 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d app
 ```
+
+6. **Для email-регистрации (Phase 1)** в настройках realm дополнительно:
+   - **Realm settings → Email**: SMTP реального провайдера (SES/SendGrid), From = ваш домен
+     (в dev вместо этого поднимается Mailpit: `docker compose up -d mailpit`);
+   - **Realm settings → Events → User events: On**, `Expiration` — с запасом
+     (приложение читает события `VERIFY_EMAIL` через Admin Events API, см. ADR-0012);
+   - **Realm settings → Security defenses → Password policy** (например
+     `length(10) and notUsername`) — иначе `422 PasswordPolicyViolation` не возникнет.
+
+> ⚠️ **Issuer и публичный адрес.** Keycloak подписывает токены и генерирует ссылки
+> с тем хостом, которым себя считает (`KC_HOSTNAME`). Приложение проверяет `iss` по
+> `KEYCLOAK_URL`. В проде `docker-compose.prod.yml` задаёт `KC_HOSTNAME`
+> (`auth.example.com`), а приложение ходит по внутреннему `http://keycloak:8080` —
+> это даёт расхождение issuer. Перед прод-запуском приведите их к одному значению
+> (например, `KEYCLOAK_URL=https://auth.example.com`) — детали в ADR-0012 (
+> § «Известное ограничение»).
 
 Подробности — [Developer Guide §16](./DEVELOPER_GUIDE.md#16-локальная-разработка).
 

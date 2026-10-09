@@ -184,7 +184,8 @@ project/
 │   │   ├── application/
 │   │   │   ├── use-case.interface.ts        # UseCase<TCmd, TResult>
 │   │   │   ├── event-bus.interface.ts       # PORT для event bus
-│   │   │   └── contact-lookup.interface.ts  # PORT: занят ли телефон (реализует user-модуль)
+│   │   │   ├── contact-lookup.interface.ts  # PORT: занят ли телефон (реализует user-модуль)
+│   │   │   └── user-provisioning.interface.ts # PORT: создать shadow-user (реализует user-модуль)
 │   │   ├── interfaces/
 │   │   │   └── http/decorators/             # @Public, @Roles, @CurrentUser (shared-метки)
 │   │   └── infrastructure/
@@ -215,16 +216,17 @@ project/
 │   │   │
 │   │   ├── auth/
 │   │   │   ├── domain/
-│   │   │   │   ├── ports/            # IdentityProviderPort, TokenStorePort
-│   │   │   │   ├── events/           # UserSignedInEvent
-│   │   │   │   └── errors/           # InvalidCredentials, InvalidToken
+│   │   │   │   ├── ports/            # IdentityProviderPort, IdentityAdminPort, TokenStorePort
+│   │   │   │   ├── events/           # UserSignedInEvent, EmailVerifiedEvent
+│   │   │   │   └── errors/           # InvalidCredentials, InvalidToken, PasswordPolicyViolation, TermsNotAccepted
 │   │   │   ├── application/
-│   │   │   │   └── use-cases/        # SignIn, Refresh, SignOut, ValidateToken
+│   │   │   │   └── use-cases/        # SignIn, Refresh, SignOut, ValidateToken, SignUpEmail, ResendVerifyEmail
 │   │   │   ├── infrastructure/
-│   │   │   │   ├── keycloak/         # HTTP client + JWT verifier + adapter
+│   │   │   │   ├── keycloak/         # HTTP client + JWT verifier + adapter, admin client/adapter,
+│   │   │   │   │                     # keycloak-event-listener.service.ts (поллинг VERIFY_EMAIL)
 │   │   │   │   └── redis/            # RedisTokenStore (blacklist)
 │   │   │   ├── interfaces/
-│   │   │   │   └── http/             # controller, guards
+│   │   │   │   └── http/             # controller, guards, DTOs, mapper
 │   │   │   └── auth.module.ts
 │   │   │
 │   │   └── otp/                      # Phase 0 auth-suite: OTP-челленджи
@@ -1177,6 +1179,7 @@ docker compose exec app npx prisma migrate deploy         # миграция в 
   - `postgres` 16.15 (init-script создаёт `keycloak` БД и `user` схему)
   - `redis` — образ **Valkey 8** (`valkey/valkey:8-alpine`, drop-in Redis 7.2); хост-порт — `${REDIS_HOST_PORT:-6379}`
   - `keycloak` — собирается из `docker/keycloak/Dockerfile`, использует postgres, `mem_limit: 1g`
+  - `mailpit` — dev-ловушка писем (профиль `mail`): SMTP 1025, UI/API 8025. Запуск: `docker compose up -d mailpit`
   - `app` (build из локального Dockerfile)
   - Healthchecks для всех, named volumes, bridge network
 
@@ -1215,6 +1218,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
    `REDIS_HOST_PORT=6380 docker compose up -d`. Если приложение запускается на хосте
    (`npm run start:dev`), в `.env` должно быть `REDIS_PORT` = тот же порт. Контейнер `app` это не
    затрагивает: внутри compose-сети его `REDIS_PORT` жёстко зафиксирован на 6379
+8. **Keycloak для email-регистрации (Phase 1).** В realm нужны: `eventsEnabled=true`
+   (+`eventsExpiration`) — иначе поллинг `VERIFY_EMAIL` не увидит события; SMTP
+   (`smtpServer.host=mailpit`, `port=1025`) — иначе письмо не уйдёт; password policy
+   (иначе `PasswordPolicyViolation` невозможно воспроизвести); роли service account
+   клиента `app-backend`: `manage-users`, `view-users`, `view-events`. Точные шаги и
+   транскрипт проверки — в `docs/auth-suite-backend-checklist.md` § Phase 1 и ADR-0012
 
 ### Образ в GHCR
 

@@ -119,22 +119,46 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 ---
 
-## 🔴 Phase 1 — Email-регистрация (Keycloak magic link)
+## 🔴 Phase 1 — Email-регистрация (Keycloak magic link) — ✅ реализовано
 
-- [ ] `POST /auth/sign-up/email` — public
+- [x] `POST /auth/sign-up/email` — public
   - body: `{ email, password, acceptedTerms: true, firstName?, lastName? }`
   - 201 → `{ user: UserDto /* status: pending_verification */, verifyEmailSent: true }`
   - Keycloak: `users.create({ email, credentials: [{ type:'password', value }], emailVerified: false, requiredActions: ['VERIFY_EMAIL'] })` + `users.sendVerifyEmail(id)`
   - `409 ContactAlreadyExists` · `422 PasswordPolicyViolation` (+`details.message`) · `422 TermsNotAccepted`
+  - shadow-user создаётся через shared-порт `USER_PROVISIONING` (владелец данных — user-контекст), поэтому `UserDto` возвращается синхронно
+  - если письмо отправить не удалось — регистрация всё равно успешна, `verifyEmailSent: false` (повтор — через resend)
 
-- [ ] `POST /auth/verify-email/resend` — public
+- [x] `POST /auth/verify-email/resend` — public
   - body: `{ email }` → `202` **всегда** (anti-enum)
 
 **Инфра:**
-- [ ] `KeycloakEventListenerService` ловит `VERIFY_EMAIL` event → обновляет Postgres shadow user (`emailVerified=true`, `status=active`)
-- фронт на `/auth/verify-email` поллит `GET /users/me` каждые 5 c
+- [x] `KeycloakEventListenerService` ловит `VERIFY_EMAIL` event → обновляет Postgres shadow user (`emailVerified=true`, `status=active`)
+  - без Java-SPI: поллинг Admin Events API каждые 10 с → доменное событие `auth.email-verified` → `OnEmailVerifiedHandler` (см. ADR-0012)
+  - требуется: `eventsEnabled=true`, роль `realm-management/view-events` у service account, SMTP в realm
+- фронт на `/auth/verify-email` поллит `GET /users/me` каждые 5 c (на стороне фронта)
 
-**Коды:** `ContactAlreadyExists`, `PasswordPolicyViolation`, `TermsNotAccepted`.
+**Коды:** `ContactAlreadyExists`, `PasswordPolicyViolation`, `TermsNotAccepted` — новых кодов реестра не потребовалось.
+
+**Acceptance Phase 1 — ✅ пройден на живом стеке (09.10.2026, Mailpit как SMTP):**
+```
+1. sign-up (новый email)         → 201  status=pending_verification emailVerified=false verifyEmailSent=true
+2. shadow-user до верификации    → pending_verification | email_verified_at = null
+3. письмо                        → Mailpit: subject 'Verify email', ссылка .../login-actions/action-token?key=…
+4. клик по ссылке (2 шага, KC26) → «Email address validation» → login-actions/required-action → «Account updated»
+5. Keycloak                      → emailVerified=true, requiredActions=[]
+6. VERIFY_EMAIL event            → 1 событие в Admin Events
+7. shadow-user после             → active | email_verified_at заполнен
+8. логи приложения               → «Verified email detected: kc=…» + «Email verified: local user is now "active"»
+доп.: повторный sign-up того же email → 409 ContactAlreadyExists
+      acceptedTerms=false            → 422 TermsNotAccepted
+      слабый пароль ('123')          → 422 PasswordPolicyViolation, details {"message":"Invalid password: minimum length 10."}
+      resend (неизвестный/подтверждённый адрес) → 202 всегда
+```
+
+**Dev-окружение (проверено):** `docker compose up -d mailpit` (профиль `mail`) + настройки realm: `eventsEnabled=true`, `eventsExpiration=3600`, `smtpServer → mailpit:1025`, `passwordPolicy=length(10) and notUsername and notEmail`, service account клиента `app-backend` c ролями `manage-users` + `view-users` + `view-events`.
+
+**Открытый follow-up (вне Phase 1):** хост в ссылке из письма = frontend URL Keycloak. В dev `KC_HOSTNAME` не задан → ссылка указывает на внутренний `http://keycloak:8080` (из браузера не открывается), а в проде `KC_HOSTNAME` разойдётся с внутренним `KEYCLOAK_URL` и сломает проверку issuer. Нужно вынести ожидаемый issuer/публичный URL отдельной переменной — см. ADR-0012 § «Известное ограничение».
 
 ---
 
