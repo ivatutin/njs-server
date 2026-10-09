@@ -628,12 +628,48 @@ InvalidContactsError extends RuleViolationError
 InvalidCredentialsError extends UnauthorizedError
 ```
 
+### Код ошибки в HTTP-ответе: `DomainError.code`
+
+Поле `error` в теле ответа — это **строка транспортного контракта**, а не имя класса
+(контракт зафиксирован на стороне клиента — ADR-0012 в `vue-app-base`). Значение объявляет
+сама ошибка:
+
+```ts
+// shared/domain/errors/domain.error.ts
+export abstract class DomainError extends Error {
+  // фолбэк: имя класса без суффикса `Error` (InvalidTokenError → InvalidToken)
+  readonly code: string = this.constructor.name.replace(/Error$/, '');
+}
+
+// modules/user/domain/errors/email-already-exists.error.ts
+export class EmailAlreadyExistsError extends ConflictError {
+  readonly code = ErrorCode.CONTACT_ALREADY_EXISTS; // 'ContactAlreadyExists'
+}
+```
+
+Правила:
+
+- код, который клиент умеет разбирать, берётся из реестра `ErrorCode`
+  (`src/shared/domain/errors/error-code.ts`) — он зеркалит frontend-реестр
+  `vue-app-base/src/shared/api/error-codes.ts`;
+- `EmailAlreadyExistsError` и `PhoneAlreadyExistsError` отдают **один и тот же**
+  `ContactAlreadyExists`: канал клиент различает по полю формы, а не по строке ошибки;
+- `UserNotFound`, `InvalidToken`, `InvalidContacts` зарегистрированы в реестре контракта с версии
+  v1.1 (`docs/auth-v1-contract.md`) и объявлены явно; фолбэк «имя класса без суффикса `Error`»
+  остаётся страховкой для классов без объявленного кода (например промежуточных базовых);
+- новый код добавляется синхронно на двух сторонах, переименование кода = breaking change
+  (`matchError(err, ErrorCode.X)` на клиенте перестанет ловить ошибку).
+
+Тесты контракта: `test/domain/errors/domain-error.spec.ts` (значения кодов, фолбэк, реестр) и
+`test/infrastructure/all-exceptions.filter.spec.ts` (HTTP-ответ содержит код реестра).
+
 ### AllExceptionsFilter (global)
 
 `shared/infrastructure/filters/all-exceptions.filter.ts` — единая точка обработки.
 
 | Что прилетело | HTTP код | Body |
 |---|---|---|
+| `DomainError` (любой наследник) | 401/403/404/409/422 — по базовому классу | `{error: DomainError.code, message, ...}` |
 | `EntityNotFoundError` | 404 | `{error, message, ...}` |
 | `ConflictError` | 409 | `{error, message, ...}` |
 | `RuleViolationError` | 422 | `{error, message, ...}` |
@@ -641,6 +677,9 @@ InvalidCredentialsError extends UnauthorizedError
 | `ForbiddenError` | 403 | `{error, message, ...}` |
 | NestJS `HttpException` (Zod, ParseUUID) | оригинальный код | оригинальный body + `details` |
 | Любое другое | 500 | `{message: "Internal server error"}` (без раскрытия деталей) |
+
+В поле `error` доменных ошибок — `DomainError.code` (контрактная строка), **не** имя класса:
+см. «Код ошибки в HTTP-ответе» выше.
 
 **Логирование:** 4xx → `warn`, 5xx → `error` (со стеком).
 
