@@ -8,7 +8,7 @@ NestJS backend application built as a **Modular Monolith** with **DDD** and **He
 
 ## Quick start
 
-**Requirements:** Node.js 20+, Docker Desktop.
+**Requirements:** Node.js 24 LTS (see `.nvmrc`), Docker Desktop.
 
 ```bash
 # 1. Clone & install
@@ -40,11 +40,11 @@ Application runs at `http://localhost:3001/api/v1`. Swagger UI at `http://localh
 
 | | |
 |---|---|
-| Runtime | Node.js 20 LTS |
+| Runtime | Node.js 24 LTS |
 | Framework | NestJS 11 + TypeScript 5.9 (SWC builder) |
 | Database | PostgreSQL 16 + Prisma 7 (multiSchema) |
-| Cache / Blacklist | Redis 7 (ioredis) |
-| Auth | Keycloak 24 (Identity Provider) |
+| Cache / Blacklist | Valkey 8 (ioredis, drop-in Redis 7.2) |
+| Auth | Keycloak 26 (custom image with `kc.sh build`) |
 | Validation | Zod 4 (DTO + env) |
 | Logging | Pino (structured JSON) |
 | Tests | Jest (106 unit tests, 95%+ coverage) |

@@ -31,13 +31,13 @@
 
 | Категория | Технология | Версия |
 |---|---|---|
-| Runtime | Node.js | 20 LTS (alpine в Docker) |
+| Runtime | Node.js | 24 LTS (bookworm-slim в Docker, `.nvmrc`) |
 | Framework | NestJS | 11 |
 | Язык | TypeScript | 5.9.3 (SWC builder) |
 | ORM | Prisma | 7.7 (multiSchema, новый клиент) |
-| База данных | PostgreSQL | 16-alpine |
-| Кэш / blacklist | Redis | 7-alpine (ioredis) |
-| Identity Provider | Keycloak | 24 |
+| База данных | PostgreSQL | 16.15-alpine |
+| Кэш / blacklist | Valkey | 8-alpine (ioredis, drop-in Redis 7.2) |
+| Identity Provider | Keycloak | 26.8 (свой образ: `kc.sh build`) |
 | Валидация | Zod | 4 (DTO + env) |
 | Логирование | Pino + nestjs-pino | 10 |
 | Тесты | Jest + ts-jest | 30 |
@@ -163,8 +163,8 @@ njs-server/
 
 ### 5.1 Требования
 
-- **Node.js 20 LTS**
-- **Docker Desktop** (для Postgres, Redis, Keycloak)
+- **Node.js 24 LTS** (версия зафиксирована в `.nvmrc`, `engines` в `package.json`)
+- **Docker Desktop** (для PostgreSQL, Valkey, Keycloak)
 - **npm** (поставляется с Node)
 
 ### 5.2 Шаги
@@ -435,7 +435,7 @@ docker compose -f docker-compose.prod.yml up -d app
 | Swagger UI | `http://localhost:3001/api/v1/docs` (когда приложение запущено) |
 | NestJS docs | https://docs.nestjs.com |
 | Prisma 7 docs | https://www.prisma.io/docs |
-| Keycloak 24 docs | https://www.keycloak.org/documentation |
+| Keycloak 26 docs | https://www.keycloak.org/documentation |
 | Zod docs | https://zod.dev |
 | Conventional Commits | https://www.conventionalcommits.org |
 

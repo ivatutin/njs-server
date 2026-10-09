@@ -50,14 +50,14 @@
 
 | Компонент | Версия | Назначение |
 |---|---|---|
-| **Node.js** | 20 LTS | Runtime |
+| **Node.js** | 24 LTS | Runtime (`.nvmrc`, `engines`) |
 | **NestJS** | 11 | HTTP-фреймворк, DI-контейнер |
 | **TypeScript** | 5.9.3 | Язык (не TS 6.x — он сломал bare `baseUrl`) |
 | **SWC** | 1.15+ | Компилятор (в `nest-cli.json`, заменяет `tsc` для скорости + watch) |
-| **PostgreSQL** | 16 | Основное хранилище |
+| **PostgreSQL** | 16.15 | Основное хранилище (пин патча) |
 | **Prisma** | 7.7 | ORM/миграции |
-| **Redis** | 7 | Кэш, blacklist токенов |
-| **Keycloak** | 24 | Identity Provider (внешний) |
+| **Valkey** | 8 | Кэш, blacklist токенов (drop-in Redis 7.2, `ioredis`) |
+| **Keycloak** | 26.8 | Identity Provider (внешний; свой образ с `kc.sh build`) |
 | **Pino** | 10 | Структурированное логирование (JSON) |
 | **Zod** | 4 | Валидация env и DTO |
 | **Jest** | 30 | Unit-тесты |
@@ -1142,21 +1142,23 @@ docker compose exec app npx prisma migrate deploy         # миграция в 
 ### Структура
 
 - **`docker/Dockerfile`** — multi-stage build:
-  - `deps` — `npm install` + `npx prisma generate`
+  - `deps` — `npm ci --include=optional` + `npx prisma generate`
   - `build` — `nest build` + sed post-process для Prisma client
-  - `runner` — minimal `node:20-alpine`, non-root user, healthcheck на `/api/v1/health`
+  - `runner` — minimal `node:24-bookworm-slim`, non-root user, healthcheck на `/api/v1/health` (через встроенный в Node `fetch`, без curl/wget)
+
+- **`docker/keycloak/Dockerfile`** — Keycloak 26.8 c build step (`kc.sh build`). Обязателен: без него `start --optimized` в проде невозможен
 
 - **`docker-compose.yml`** — dev/default:
-  - `postgres` (init-script создаёт `keycloak` БД и `user` схему)
-  - `redis`
-  - `keycloak` (использует postgres)
+  - `postgres` 16.15 (init-script создаёт `keycloak` БД и `user` схему)
+  - `redis` — образ **Valkey 8** (`valkey/valkey:8-alpine`, drop-in Redis 7.2)
+  - `keycloak` — собирается из `docker/keycloak/Dockerfile`, использует postgres, `mem_limit: 1g`
   - `app` (build из локального Dockerfile)
   - Healthchecks для всех, named volumes, bridge network
 
 - **`docker-compose.prod.yml`** — override для prod:
   - `restart: always`
   - порты сервисов не торчат наружу
-  - keycloak в `start --optimized` (требует pre-build с `KC_HOSTNAME`)
+  - keycloak в `start --optimized` (образ уже прошёл build step, `KC_HOSTNAME` из `.env`)
   - app использует pre-built image из GHCR
 
 ### Запуск полного стека
@@ -1171,10 +1173,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 ### Подводные камни
 
-1. **npm install vs npm ci.** Lock-файл может генериться на Windows, Linux deps отличаются → `npm install` в Dockerfile вместо `npm ci`
+1. **`npm ci` и lockfile.** В CI и в Dockerfile стоит строгий `npm ci --include=optional` (без fallback на `npm install`) — это гарантирует, что собирается ровно то, что в `package-lock.json`. Если lock разошёлся с `package.json` или собран на Windows и падает на Linux, перегенерировать: `rm -rf node_modules package-lock.json && npm install`
 2. **SWC quirk.** На Linux SWC иногда добавляет `.ts` extension в `require()` для generated Prisma client → post-process через `sed` в Dockerfile
-3. **`libssl` в Alpine.** Prisma нужен `libssl.so.3` — он уже есть в `node:20-alpine`, отдельный `apk add openssl` не нужен
-4. **Миграции в Docker.** Приложение **не запускает** миграции автоматически. Запустить:
+3. **`libssl` в Debian-slim.** Prisma нужен `libssl.so.3` — в `node:24-bookworm-slim` он уже есть, отдельная установка не нужна
+4. **Keycloak и `--optimized`.** Stock-образ так запускать нельзя: нужен build step (`docker/keycloak/Dockerfile`). Dev стартует через `start-dev`, прод — `start --optimized`
+5. **Миграции в Docker.** Приложение **не запускает** миграции автоматически. Запустить:
    ```bash
    docker compose exec app npx prisma migrate deploy
    ```

@@ -221,13 +221,13 @@ CI/CD pipeline (предпочтительно GitHub Actions).
 
 | Компонент | Версия | Примечание |
 |---|---|---|
-| Node.js | 20 LTS | в Docker — alpine |
+| Node.js | 24 LTS | в Docker — bookworm-slim; `.nvmrc` + `engines` |
 | NestJS | 11 | |
 | TypeScript | **5.9.3** | НЕ 6.x — TS6 ломает `baseUrl`/`paths` |
 | Prisma | **7.7.0** | важные особенности — см. ниже |
-| PostgreSQL | 16-alpine | |
-| Redis | 7-alpine | |
-| Keycloak | 24 | quay.io/keycloak/keycloak:24.0 |
+| PostgreSQL | 16.15-alpine | пин патча |
+| Valkey | 8-alpine | drop-in Redis 7.2, env остались `REDIS_*` |
+| Keycloak | 26.8 | свой образ: `docker/keycloak/Dockerfile` (`kc.sh build`) |
 | Package manager | **npm** | |
 | Builder | **SWC** | в `nest-cli.json`, не tsc — нужен для NestJS 11 + watch |
 | Логгер | nestjs-pino (план) | |
@@ -371,7 +371,7 @@ npx prisma migrate dev                               # применить
 # PostgreSQL в Docker
 docker run --name pg-dev \
   -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=app \
-  -p 5432:5432 -d postgres:16-alpine
+  -p 5432:5432 -d postgres:16.15-alpine
 
 # Создать схему "user" (multiSchema требует существующей схемы)
 docker exec pg-dev psql -U postgres -d app -c 'CREATE SCHEMA IF NOT EXISTS "user";'

@@ -73,3 +73,6 @@ External resources.
 | [0005](./0005-zod-for-validation.md) | Zod для валидации DTO и env | Accepted |
 | [0006](./0006-defense-in-depth-for-invariants.md) | Defense in Depth для доменных инвариантов | Accepted |
 | [0007](./0007-swc-builder-over-tsc.md) | SWC builder вместо tsc | Accepted |
+| [0008](./0008-node-24-lts-and-strict-npm-ci.md) | Node.js 24 LTS + строгий `npm ci` | Accepted |
+| [0009](./0009-keycloak-26-optimized-image.md) | Keycloak 26 и оптимизированный образ (build step) | Accepted |
+| [0010](./0010-valkey-over-redis.md) | Valkey 8 вместо Redis 7 | Accepted |

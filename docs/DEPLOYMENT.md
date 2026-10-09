@@ -1,7 +1,7 @@
 # Деплой njs-server на VPS
 
 > Пошаговая инструкция развёртывания пилотного варианта на чистом VPS (Ubuntu 22.04/24.04 LTS).
-> Стек: NestJS (app) + PostgreSQL 16 + Redis 7 + Keycloak 24, всё в Docker Compose.
+> Стек: NestJS (app) + PostgreSQL 16.15 + Valkey 8 + Keycloak 26.8, всё в Docker Compose.
 
 ---
 
@@ -200,23 +200,28 @@ docker compose ps
 docker compose logs -f keycloak   # дождись "started" (первый старт ~30–60 c)
 ```
 
+> **Первый старт дополнительно собирает образ Keycloak** (`docker/keycloak/Dockerfile`,
+> build step `kc.sh build`): нужно ~1 GB свободной RAM и несколько минут. Дальше образ
+> берётся из кэша. Чтобы разделить шаги — `docker compose build keycloak` перед `up -d`.
+
 ---
 
 ## 6. Лимит памяти Keycloak (для 4 GB)
 
-Добавь в сервис `keycloak` (например, в `docker-compose.prod.yml`):
+Базовый `docker-compose.yml` уже задаёт `mem_limit: 1g` и
+`JAVA_OPTS_APPEND: "-XX:MaxRAMPercentage=70"` — heap ≈ 700 MB, а
+`MaxRAMPercentage` считается от **лимита контейнера**, не от памяти хоста.
+Для 4 GB VPS этого достаточно. Если нужно ужать сильнее — переопредели в
+`docker-compose.prod.yml`:
 
 ```yaml
   keycloak:
+    mem_limit: 768m
     environment:
-      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx512m"
-    deploy:
-      resources:
-        limits:
-          memory: 1g
+      JAVA_OPTS_APPEND: "-XX:MaxRAMPercentage=70"
 ```
 
-Без этого JVM возьмёт «сколько даёт ОС» и может вызвать OOM на маленькой машине.
+Без лимитов JVM взяла бы «сколько даёт ОС» и могла вызвать OOM на маленькой машине.
 
 ---
 
