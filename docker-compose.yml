@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # Пин патча PostgreSQL 16 — воспроизводимость важнее автообновления
+    image: postgres:16.15-alpine
     container_name: app-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -20,15 +21,17 @@ services:
       - app-network
 
   redis:
-    image: redis:7-alpine
+    # Valkey 8 — drop-in форк Redis 7.2 под OSS-лицензией; клиент ioredis совместим,
+    # имена env-переменных REDIS_* и имя сервиса не меняем
+    image: valkey/valkey:8-alpine
     container_name: app-redis
-    command: redis-server --appendonly yes
+    command: valkey-server --appendonly yes
     volumes:
       - redis-data:/data
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -36,25 +39,46 @@ services:
       - app-network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    # Образ собирается локально: build step (kc.sh build) обязателен для
+    # `start --optimized` в docker-compose.prod.yml
+    build:
+      context: .
+      dockerfile: docker/keycloak/Dockerfile
+    image: app-keycloak:26.8.0
     container_name: app-keycloak
     command: start-dev
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Keycloak 26: bootstrap-админ задаётся через KC_BOOTSTRAP_ADMIN_*
+      # (KEYCLOAK_ADMIN* удалены), но имена наших .env-переменных не меняем
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      # Heap = 70% от mem_limit контейнера: фиксируем явно, чтобы политика
+      # была видна здесь, а не только в дефолтах образа
+      JAVA_OPTS_APPEND: "-XX:MaxRAMPercentage=70"
+    mem_limit: 1g
     ports:
       - "8088:8080"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      # TCP check на listen-порт 8080
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ready || exit 1"]
+      # /health/ready на management-порту 9000 (Keycloak 25+). Только bash-builtins
+      # (/dev/tcp, read, [[ ]]) — в hardened-образе нет curl/wget
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/localhost/9000 &&
+          printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          read -r -t 5 status <&3 &&
+          [[ "$$status" == *200* ]]
       interval: 10s
       timeout: 5s
       retries: 12

@@ -13,8 +13,9 @@ services:
 
   keycloak:
     restart: always
-    # Production mode требует KC_HOSTNAME и pre-build
-    command: start --optimized
+    # Образ уже прошёл build step (docker/keycloak/Dockerfile) — только поэтому
+    # `start --optimized` валиден: Keycloak стартует без пересборки конфигурации
+    command: ["start", "--optimized"]
     environment:
       KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
       KC_HTTP_ENABLED: "true"
