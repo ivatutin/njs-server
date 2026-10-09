@@ -90,17 +90,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
   /**
    * DomainError → HTTP статус по базовому классу, а `error` — контрактный код
    * (`DomainError.code`), а не имя класса: клиент матчит ошибки по этой строке
-   * (ADR-0012, реестр `ErrorCode`).
+   * (ADR-0012, реестр `ErrorCode`). `details` (если заданы) уходят в тело ответа.
    */
   private classifyDomainError(exception: DomainError): {
     status: number;
     error: string;
     message: string;
+    details?: unknown;
   } {
     return {
       status: this.domainErrorStatus(exception),
       error: exception.code,
       message: exception.message,
+      details: exception.details,
     };
   }
 

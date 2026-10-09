@@ -28,9 +28,17 @@ export abstract class DomainError extends Error {
    */
   readonly code: string = this.constructor.name.replace(/Error$/, '');
 
-  constructor(message: string) {
+  /**
+   * Структурированные детали для поля `details` в теле HTTP-ответа.
+   * Контракт требует их, например, для `OtpRateLimited` → `{ retryAfter }`
+   * и `PasswordPolicyViolation` → `{ message }`.
+   */
+  readonly details?: unknown;
+
+  constructor(message: string, details?: unknown) {
     super(message);
     this.name = this.constructor.name;
+    this.details = details;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }

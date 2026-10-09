@@ -12,6 +12,7 @@ import { EmailAlreadyExistsError } from '../../../src/modules/user/domain/errors
 import { PhoneAlreadyExistsError } from '../../../src/modules/user/domain/errors/phone-already-exists.error';
 import { UserNotFoundError } from '../../../src/modules/user/domain/errors/user-not-found.error';
 import { InvalidContactsError } from '../../../src/modules/user/domain/errors/invalid-contacts.error';
+import { OtpRateLimitedError } from '../../../src/modules/otp/domain/errors/otp-rate-limited.error';
 
 /**
  * Снапшот реестра `ErrorCode` — гардрейл против drift
@@ -130,6 +131,10 @@ describe('DomainError.code', () => {
     expect(new PhoneAlreadyExistsError().code).toBe(new EmailAlreadyExistsError().code);
   });
 
+  it('carries structured details required by the contract', () => {
+    expect(new OtpRateLimitedError(42).details).toEqual({ retryAfter: 42 });
+  });
+
   it('pins the ErrorCode registry snapshot (contract v1.1)', () => {
     expect(Object.values(ErrorCode).sort()).toEqual([...REGISTRY_CODES].sort());
   });
@@ -171,6 +176,10 @@ describe('DomainError.code', () => {
         'InvalidContacts',
         'InvalidCredentials',
         'InvalidToken',
+        'OtpExpired',
+        'OtpInvalid',
+        'OtpRateLimited',
+        'OtpTooManyAttempts',
         'UserNotFound',
       ]);
     });

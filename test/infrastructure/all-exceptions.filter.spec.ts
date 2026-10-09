@@ -8,6 +8,7 @@ import { EmailAlreadyExistsError } from '../../src/modules/user/domain/errors/em
 import { PhoneAlreadyExistsError } from '../../src/modules/user/domain/errors/phone-already-exists.error';
 import { UserNotFoundError } from '../../src/modules/user/domain/errors/user-not-found.error';
 import { InvalidContactsError } from '../../src/modules/user/domain/errors/invalid-contacts.error';
+import { OtpRateLimitedError } from '../../src/modules/otp/domain/errors/otp-rate-limited.error';
 
 interface ErrorResponseBody {
   statusCode: number;
@@ -99,6 +100,14 @@ describe('AllExceptionsFilter (error contract)', () => {
     expect(body.path).toBe(REQUEST.url);
     expect(new Date(body.timestamp).toISOString()).toBe(body.timestamp);
     expect(body).not.toHaveProperty('details');
+  });
+
+  it('emits DomainError details required by the contract (OtpRateLimited.retryAfter)', () => {
+    const { status, body } = run(new OtpRateLimitedError(42));
+
+    expect(status).toBe(422);
+    expect(body.error).toBe(ErrorCode.OTP_RATE_LIMITED);
+    expect(body.details).toEqual({ retryAfter: 42 });
   });
 
   it('passes NestJS HttpException through with its own status and details', () => {
