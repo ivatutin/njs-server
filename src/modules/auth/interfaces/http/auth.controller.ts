@@ -8,7 +8,15 @@ import { SignOutCommand } from '../../application/use-cases/sign-out/sign-out.co
 import { SignInDto } from './dto/sign-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignOutDto } from './dto/sign-out.dto';
+import { SignUpEmailDto } from './dto/sign-up-email.dto';
+import { ResendVerifyEmailDto } from './dto/resend-verify-email.dto';
+import { SignUpEmailResponseDto } from './dto/sign-up-email-response.dto';
 import { TokenPairResponseDto } from './dto/token-pair-response.dto';
+import { AuthHttpMapper } from './mappers/auth-http.mapper';
+import { SignUpEmailCommand } from '../../application/use-cases/sign-up-email/sign-up-email.command';
+import { SignUpEmailUseCase } from '../../application/use-cases/sign-up-email/sign-up-email.use-case';
+import { ResendVerifyEmailCommand } from '../../application/use-cases/resend-verify-email/resend-verify-email.command';
+import { ResendVerifyEmailUseCase } from '../../application/use-cases/resend-verify-email/resend-verify-email.use-case';
 import { Public } from '@shared/interfaces/http/decorators/public.decorator';
 
 @ApiTags('Auth')
@@ -18,6 +26,8 @@ export class AuthController {
     private readonly signInUC: SignInUseCase,
     private readonly refreshTokenUC: RefreshTokenUseCase,
     private readonly signOutUC: SignOutUseCase,
+    private readonly signUpEmailUC: SignUpEmailUseCase,
+    private readonly resendVerifyEmailUC: ResendVerifyEmailUseCase,
   ) {}
 
   @Public()
@@ -63,5 +73,44 @@ export class AuthController {
   ): Promise<void> {
     const accessToken = authHeader?.replace(/^Bearer\s+/i, '') ?? null;
     await this.signOutUC.execute(new SignOutCommand(accessToken, dto.refreshToken));
+  }
+
+  @Public()
+  @Post('sign-up/email')
+  @ApiOperation({
+    summary: 'Sign up with email + password',
+    description:
+      'Creates a Keycloak account with a password and the VERIFY_EMAIL required action, ' +
+      'provisions the local user (status pending_verification) and sends the verification ' +
+      'magic link. The response user shape matches the contract UserDto.',
+  })
+  @ApiResponse({ status: 201, type: SignUpEmailResponseDto })
+  @ApiResponse({ status: 409, description: 'ContactAlreadyExists' })
+  @ApiResponse({ status: 422, description: 'PasswordPolicyViolation | TermsNotAccepted' })
+  async signUpEmail(@Body() dto: SignUpEmailDto): Promise<SignUpEmailResponseDto> {
+    const result = await this.signUpEmailUC.execute(
+      new SignUpEmailCommand(
+        dto.email,
+        dto.password,
+        dto.acceptedTerms,
+        dto.firstName ?? null,
+        dto.lastName ?? null,
+      ),
+    );
+    return AuthHttpMapper.toSignUpEmailResponse(result);
+  }
+
+  @Public()
+  @Post('verify-email/resend')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Resend the email verification link',
+    description:
+      'Always answers 202 (anti-enumeration): the response does not reveal whether the ' +
+      'address exists or is already verified.',
+  })
+  @ApiResponse({ status: 202, description: 'Accepted (always)' })
+  async resendVerifyEmail(@Body() dto: ResendVerifyEmailDto): Promise<void> {
+    await this.resendVerifyEmailUC.execute(new ResendVerifyEmailCommand(dto.email));
   }
 }
