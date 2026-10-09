@@ -1186,8 +1186,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
    ```bash
    docker compose rm -sf redis && docker volume rm <project>_redis-data
    ```
-7. **Порт занят другим проектом.** Хост-порты Redis и Keycloak можно сдвинуть без правки compose:
-   `REDIS_HOST_PORT=6380 docker compose up -d`
+7. **Порт занят другим проектом.** Хост-порт Valkey можно сдвинуть без правки compose:
+   `REDIS_HOST_PORT=6380 docker compose up -d`. Если приложение запускается на хосте
+   (`npm run start:dev`), в `.env` должно быть `REDIS_PORT` = тот же порт. Контейнер `app` это не
+   затрагивает: внутри compose-сети его `REDIS_PORT` жёстко зафиксирован на 6379
 
 ### Образ в GHCR
 

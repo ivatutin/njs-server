@@ -103,6 +103,10 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-app}?schema=public
       REDIS_HOST: redis
+      # Внутри compose-сети порт контейнера всегда 6379; хост-маппинг
+      # (${REDIS_HOST_PORT}) влияет только на доступ с хоста. Фиксируем явно,
+      # чтобы локальный REDIS_PORT из .env не протекал в контейнер
+      REDIS_PORT: 6379
       KEYCLOAK_URL: http://keycloak:8080
     ports:
       - "${APP_PORT:-3001}:3001"
