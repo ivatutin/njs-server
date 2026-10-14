@@ -164,12 +164,24 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 ---
 
-## 🟡 Phase 1.5 — Забыл пароль
+## 🟡 Phase 1.5 — Забыл пароль — ✅ реализовано
 
-- [ ] `POST /auth/forgot-password` — public
+- [x] `POST /auth/forgot-password` — public
   - body: `{ email }` → `202` **всегда** (anti-enum)
   - Keycloak: `users.executeActionsEmail(id, ['UPDATE_PASSWORD'], { lifespan: 3600 })`
   - rate-limit 3/час per email
+  - лимит влияет **только** на отправку письма: при превышении — тихий пропуск и всё те же 202 (лог `rate limited, letter skipped`); email в ключе Redis хешируется (PII не попадает в дампы)
+
+**Acceptance Phase 1.5 — ✅ пройден на живом стеке (14.10.2026):**
+```
+1. известный адрес          → 202, письмо 'Update Your Account' в Mailpit
+2. неизвестный адрес        → 202, письма нет (счётчик писем не изменился)
+3. битый payload            → 400 (валидация DTO: email)
+4. четвёртый запрос за час  → 202, письма нет; лог: "rate limited, letter skipped (retry in ~3578s)"
+   (три письма за первые три запроса — лимит 3/час работает)
+5. ссылка в письме          → host=localhost:8088 (публичный адрес, ADR-0013)
+```
+Новый ADR не потребовался: решение о rate-limit и TTL ссылки зафиксировано в чек-листе, паттерн счётчиков — в ADR-0011.
 
 ---
 
