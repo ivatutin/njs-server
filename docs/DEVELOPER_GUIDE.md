@@ -829,6 +829,10 @@ KEYCLOAK_URL=http://localhost:8088
 KEYCLOAK_REALM=app
 KEYCLOAK_CLIENT_ID=app-backend
 KEYCLOAK_CLIENT_SECRET=<changeme>
+# Ожидаемый issuer токенов. Нужен, когда Keycloak «считает себя» публичным адресом
+# (KC_HOSTNAME), а приложение зовёт его по внутреннему (см. ADR-0013).
+# В docker-контейнере это значение задаёт docker-compose.yml.
+# KEYCLOAK_ISSUER=http://localhost:8088/realms/app
 
 # Throttler (на будущее)
 THROTTLE_TTL=60
@@ -842,6 +846,7 @@ THROTTLE_LIMIT=100
 **Приложение упадёт на старте**, если:
 - `DATABASE_URL` не URL
 - `KEYCLOAK_URL` не URL
+- `KEYCLOAK_ISSUER` задан, но не URL
 - Любая обязательная переменная отсутствует
 
 Это лучше, чем падать в рантайме при первом запросе.
@@ -1224,6 +1229,16 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
    (иначе `PasswordPolicyViolation` невозможно воспроизвести); роли service account
    клиента `app-backend`: `manage-users`, `view-users`, `view-events`. Точные шаги и
    транскрипт проверки — в `docs/auth-suite-backend-checklist.md` § Phase 1 и ADR-0012
+9. **Issuer Keycloak ≠ адрес, по которому приложение к нему ходит.** В dev
+   `KC_HOSTNAME=http://localhost:8088` (чтобы ссылки в письмах открывались из браузера),
+   а `KEYCLOAK_URL` внутри контейнера — `http://keycloak:8080`; ожидаемый `iss` задаётся
+   `KEYCLOAK_ISSUER`. Если поправить одно и забыть другое — 401 на protected-эндпоинтах.
+   Детали и альтернативы — ADR-0013
+10. **Keycloak 26 требует first/last name (user profile).** Если регистрировать без имён
+   (`firstName`/`lastName` не переданы), аккаунт остаётся «Account is not fully set up»:
+   при первом входе Keycloak показывает «Update Account Information», а direct grant
+   отвечает `invalid_grant`. Передавайте имена при sign-up или отключите требование в
+   realm (`Realm settings → User profile`)
 
 ### Образ в GHCR
 

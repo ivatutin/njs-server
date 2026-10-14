@@ -158,7 +158,9 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 **Dev-окружение (проверено):** `docker compose up -d mailpit` (профиль `mail`) + настройки realm: `eventsEnabled=true`, `eventsExpiration=3600`, `smtpServer → mailpit:1025`, `passwordPolicy=length(10) and notUsername and notEmail`, service account клиента `app-backend` c ролями `manage-users` + `view-users` + `view-events`.
 
-**Открытый follow-up (вне Phase 1):** хост в ссылке из письма = frontend URL Keycloak. В dev `KC_HOSTNAME` не задан → ссылка указывает на внутренний `http://keycloak:8080` (из браузера не открывается), а в проде `KC_HOSTNAME` разойдётся с внутренним `KEYCLOAK_URL` и сломает проверку issuer. Нужно вынести ожидаемый issuer/публичный URL отдельной переменной — см. ADR-0012 § «Известное ограничение».
+**Follow-up по хосту в ссылке — ✅ закрыт (ADR-0013):** добавлена переменная `KEYCLOAK_ISSUER` (по умолчанию `${KEYCLOAK_URL}/realms/${realm}`, в compose выводится из публичного адреса), а Keycloak в dev получил `KC_HOSTNAME=http://localhost:8088`. Проверено на живом стеке: ссылка из письма ведёт на публичный адрес (открывается из браузера), `iss` в токене = `http://localhost:8088/realms/app`, `POST /auth/sign-in` → 200 и `GET /users/me` с этим токеном → 200.
+
+**Найдено попутно (для фронта и прода):** Keycloak 26 требует заполненный user profile (first/last name) — регистрация без имён оставляет аккаунт в состоянии «Account is not fully set up» (direct grant → `invalid_grant`, при входе — страница «Update Account Information»). Передавайте имена при sign-up или ослабьте требование в realm.
 
 ---
 

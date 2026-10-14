@@ -129,14 +129,19 @@ KEYCLOAK_REALM=app
 KEYCLOAK_CLIENT_ID=app-backend
 KEYCLOAK_CLIENT_SECRET=<заполнить после настройки realm>
 
-# --- хост Keycloak для prod-режима (твой домен auth) ---
+# --- публичный адрес Keycloak (им подписываются токены и ссылки в письмах) ---
 KC_HOSTNAME=auth.example.com
+
+# --- опционально: ожидаемый issuer токенов ---
+# По умолчанию выводится в docker-compose.prod.yml как https://${KC_HOSTNAME}/realms/${KEYCLOAK_REALM}.
+# Задавайте явно, если схема/порт публичного адреса отличаются (см. ADR-0013).
+# KEYCLOAK_ISSUER=https://auth.example.com/realms/app
 
 # --- опционально: базовый образ Keycloak для сборки (если CDN quay.io недоступен) ---
 # KEYCLOAK_IMAGE=docker.io/keycloak/keycloak:26.8.0
 ```
 
-> `DATABASE_URL`, `REDIS_HOST`, `KEYCLOAK_URL` для контейнеров переопределяются внутри `docker-compose.yml` на внутренние имена сервисов (`postgres`, `redis`, `keycloak`) — менять их в `.env` для контейнерного запуска не нужно.
+> `DATABASE_URL`, `REDIS_HOST`, `KEYCLOAK_URL` для контейнеров переопределяются внутри `docker-compose.yml` на внутренние имена сервисов (`postgres`, `redis`, `keycloak`) — менять их в `.env` для контейнерного запуска не нужно. Ожидаемый issuer токенов (`KEYCLOAK_ISSUER`) при этом остаётся **публичным** и по умолчанию выводится из `KC_HOSTNAME` (см. §7 и ADR-0013).
 
 ---
 
@@ -254,13 +259,14 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d app
    - **Realm settings → Security defenses → Password policy** (например
      `length(10) and notUsername`) — иначе `422 PasswordPolicyViolation` не возникнет.
 
-> ⚠️ **Issuer и публичный адрес.** Keycloak подписывает токены и генерирует ссылки
-> с тем хостом, которым себя считает (`KC_HOSTNAME`). Приложение проверяет `iss` по
-> `KEYCLOAK_URL`. В проде `docker-compose.prod.yml` задаёт `KC_HOSTNAME`
-> (`auth.example.com`), а приложение ходит по внутреннему `http://keycloak:8080` —
-> это даёт расхождение issuer. Перед прод-запуском приведите их к одному значению
-> (например, `KEYCLOAK_URL=https://auth.example.com`) — детали в ADR-0012 (
-> § «Известное ограничение»).
+> **Issuer и публичный адрес.** Keycloak подписывает токены (`iss`) и генерирует ссылки в
+> письмах от адреса, которым **себя считает** — `KC_HOSTNAME`. Приложение обращается к нему
+> по внутреннему `KEYCLOAK_URL`, а ожидаемый `iss` задаётся отдельно переменной
+> `KEYCLOAK_ISSUER` (в prod-compose по умолчанию выводится как
+> `https://${KC_HOSTNAME}/realms/${KEYCLOAK_REALM}`). Держите `KC_HOSTNAME` равным
+> публичному домену (`auth.example.com`) — тогда issuer будет
+> `https://auth.example.com/realms/app`, ссылки из писем будут вести на ваш домен, а
+> protected-эндпоинты не будут отдавать 401. Проверка и альтернативы — ADR-0013.
 
 Подробности — [Developer Guide §16](./DEVELOPER_GUIDE.md#16-локальная-разработка).
 
@@ -341,6 +347,8 @@ docker image prune -f
 - [ ] Reverse-proxy (Caddy) выдаёт валидный HTTPS
 - [ ] Стек поднят: `docker compose ps` — все healthy
 - [ ] Keycloak realm/client настроены, `KEYCLOAK_CLIENT_SECRET` вписан
+- [ ] `KC_HOSTNAME` = публичный домен `auth.*`, issuer согласован (ADR-0013); service account имеет `manage-users`/`view-users`/`view-events`
+- [ ] SMTP для писем и User events включены (ADR-0012)
 - [ ] `prisma migrate deploy` выполнен
 - [ ] `GET /api/v1/health` → `ok`
 - [ ] Настроен бэкап Postgres (cron)

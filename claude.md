@@ -386,7 +386,7 @@ docker compose -f docker-compose.prod.yml up -d app
 | Database | `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
 | Redis | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` |
 | Keycloak (admin) | `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD` |
-| Keycloak (app) | `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` |
+| Keycloak (app) | `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_ISSUER` (опц.) |
 | Throttler | `THROTTLE_TTL`, `THROTTLE_LIMIT` |
 
 Полный пример — [`.env.example`](./.env.example).
