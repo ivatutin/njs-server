@@ -15,6 +15,7 @@ function snapshot(overrides: Partial<OtpChallengeSnapshot> = {}): OtpChallengeSn
   return {
     id: 'ch-1',
     channel: 'phone',
+    method: 'otp',
     target: '+79991234567',
     purpose: 'sign-up',
     codeHash: 'argon2id$hash',
@@ -36,6 +37,8 @@ describe('VerifyOtpUseCase', () => {
       save: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn(),
       findActiveId: jest.fn(),
+      findByProviderCheckId: jest.fn(),
+      claimVerification: jest.fn(),
       deleteById: jest.fn().mockResolvedValue(undefined),
     };
     hasher = { hash: jest.fn(), verify: jest.fn().mockResolvedValue(true) };
@@ -90,6 +93,17 @@ describe('VerifyOtpUseCase', () => {
 
     await expect(useCase.execute(new VerifyOtpCommand('ch-1', '123456'))).rejects.toThrow(
       OtpTooManyAttemptsError,
+    );
+    expect(hasher.verify).not.toHaveBeenCalled();
+  });
+
+  it('refuses a call challenge: a code cannot confirm it', async () => {
+    store.findById.mockResolvedValue(
+      OtpChallenge.restore(snapshot({ method: 'call', codeHash: null })),
+    );
+
+    await expect(useCase.execute(new VerifyOtpCommand('ch-1', '123456'))).rejects.toThrow(
+      OtpInvalidError,
     );
     expect(hasher.verify).not.toHaveBeenCalled();
   });

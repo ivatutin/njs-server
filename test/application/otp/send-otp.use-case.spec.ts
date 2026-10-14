@@ -25,6 +25,8 @@ describe('SendOtpUseCase', () => {
       save: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn(),
       findActiveId: jest.fn(),
+      findByProviderCheckId: jest.fn(),
+      claimVerification: jest.fn(),
       deleteById: jest.fn(),
     };
     hasher = { hash: jest.fn().mockResolvedValue('argon2id$hash'), verify: jest.fn() };

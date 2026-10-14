@@ -17,10 +17,24 @@ export interface OtpChallengeStore {
   findById(challengeId: string): Promise<OtpChallenge | null>;
 
   /**
+   * Челлендж по `check_id` провайдера — нужен вебхуку: тело запроса не считается
+   * доверенным (ADR-0014), но по нему мы находим *свою* заявку и перепроверяем
+   * состояние авторизованным запросом к провайдеру.
+   */
+  findByProviderCheckId(providerCheckId: string): Promise<OtpChallenge | null>;
+
+  /**
    * Id активного челленджа для пары (target, purpose) — чтобы инвалидировать
    * предыдущий при resend (race при повторной отправке).
    */
   findActiveId(target: string, purpose: OtpPurpose): Promise<string | null>;
+
+  /**
+   * Атомарно «забирает» право выдать `verificationToken` по челленджу (`SET NX`):
+   * вебхук провайдера и polling фронта могут прийти одновременно, а токен должен
+   * выдаваться ровно один раз (ADR-0014).
+   */
+  claimVerification(challengeId: string, ttlSeconds: number): Promise<boolean>;
 
   deleteById(challengeId: string): Promise<void>;
 }

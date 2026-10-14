@@ -5,6 +5,7 @@ import { OtpTooManyAttemptsError } from '../../../src/modules/otp/domain/errors/
 const BASE_PARAMS = {
   id: 'ch-1',
   channel: 'phone' as const,
+  method: 'otp' as const,
   target: '+79991234567',
   purpose: 'sign-up' as const,
   codeHash: 'argon2id$hash',
@@ -73,6 +74,7 @@ describe('OtpChallenge', () => {
       'createdAt',
       'expiresAt',
       'id',
+      'method',
       'purpose',
       'target',
     ]);

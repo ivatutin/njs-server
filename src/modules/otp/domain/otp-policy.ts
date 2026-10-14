@@ -43,6 +43,28 @@ export const OTP_MAX_PER_IP_PER_HOUR = 10;
 /** TTL verificationToken, который выдаётся после успешного verify. */
 export const VERIFICATION_TOKEN_TTL_SECONDS = 600;
 
+/** Окно, в течение которого пользователь должен позвонить (ограничение провайдера). */
+export const CALL_WINDOW_SECONDS = 300;
+
+/** Минимальный интервал между обращениями к провайдеру по одному челленджу (троттлинг). */
+export const CALL_POLL_MIN_SECONDS = 5;
+
+/**
+ * Каналы верификации телефона (ADR-0014): код по SMS и обратный звонок.
+ * Активный челлендж на `(target, purpose)` — один на оба канала.
+ */
+export const VERIFICATION_METHODS = ['otp', 'call'] as const;
+
+export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
+
+/**
+ * Состояния звонкового челленджа. Контракт v1.2 отдаёт их как поле `status`
+ * при HTTP 200 — новых кодов ошибок не вводится.
+ */
+export const CALL_STATUSES = ['pending', 'verified', 'expired', 'failed'] as const;
+
+export type CallStatus = (typeof CALL_STATUSES)[number];
+
 export function isOtpPurpose(value: unknown): value is OtpPurpose {
   return typeof value === 'string' && (OTP_PURPOSES as readonly string[]).includes(value);
 }

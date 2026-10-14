@@ -37,6 +37,12 @@ export class VerifyOtpUseCase implements UseCase<VerifyOtpCommand, OtpVerificati
     const challenge = await this.store.findById(cmd.challengeId);
     if (!challenge) throw new OtpExpiredError();
 
+    // Звонковый челлендж кодом не проверяется (ADR-0014): для него нет хеша,
+    // и ввод кода — это просто неверный ответ.
+    if (challenge.method !== 'otp' || challenge.codeHash === null) {
+      throw new OtpInvalidError();
+    }
+
     challenge.ensureUsable();
 
     const matches = await this.hasher.verify(challenge.codeHash, cmd.code);

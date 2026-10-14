@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { resolveClientIp } from '@shared/interfaces/http/client-ip';
 import { Public } from '@shared/interfaces/http/decorators/public.decorator';
 import { SendOtpCommand } from '../../application/use-cases/send-otp/send-otp.command';
 import { SendOtpUseCase } from '../../application/use-cases/send-otp/send-otp.use-case';
@@ -60,13 +61,4 @@ export class OtpController {
     const result = await this.verifyOtpUC.execute(new VerifyOtpCommand(dto.challengeId, dto.code));
     return OtpHttpMapper.toVerifiedResponse(result);
   }
-}
-
-/** IP вызывающего для per-IP лимита (учитываем X-Forwarded-For за reverse-proxy). */
-function resolveClientIp(request: Request): string | null {
-  const header = request.headers['x-forwarded-for'];
-  if (typeof header === 'string' && header.length > 0) {
-    return header.split(',')[0].trim();
-  }
-  return request.ip ?? null;
 }

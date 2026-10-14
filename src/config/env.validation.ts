@@ -17,6 +17,11 @@ const envSchema = z.object({
   KEYCLOAK_ISSUER: z.string().url().optional(),
   THROTTLE_TTL: z.coerce.number().default(60),
   THROTTLE_LIMIT: z.coerce.number().default(100),
+  // Звонковая верификация телефона (SMS.ru callcheck, ADR-0014)
+  SMSRU_API_ID: z.string().optional().default(''),
+  SMSRU_CALLCHECK_ENABLED: z.enum(['true', 'false']).optional().default('false'),
+  SMSRU_API_BASE_URL: z.string().url().optional().default('https://sms.ru'),
+  SMSRU_DEV_CONFIRM_AFTER_SECONDS: z.coerce.number().int().nonnegative().default(15),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
