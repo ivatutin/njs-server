@@ -23,6 +23,8 @@ describe('ForgotPasswordUseCase', () => {
       sendVerifyEmail: jest.fn(),
       sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
       findEmailVerificationEvents: jest.fn(),
+      createPhoneUser: jest.fn(),
+      findByUsername: jest.fn(),
     };
     rateLimiter = { consume: jest.fn().mockResolvedValue({ allowed: true }) };
     useCase = new ForgotPasswordUseCase(identityAdmin, rateLimiter);

@@ -32,7 +32,12 @@ export interface UserProvisioning {
    */
   ensureFromIdentity(params: {
     keycloakId: string;
-    email: string;
+    /** Email может отсутствовать: phone-регистрация создаёт пользователя без него. */
+    email?: string | null;
+    /** Телефон (E.164) — второй канал контакта. */
+    phone?: string | null;
+    /** Телефон уже подтверждён верификацией до создания учётки (Phase 2). */
+    phoneVerified?: boolean;
     firstName?: string | null;
     lastName?: string | null;
   }): Promise<ProvisionedUser>;

@@ -35,6 +35,22 @@ export interface IdentityAdminPort {
     lastName?: string | null;
   }): Promise<{ keycloakId: string }>;
 
+  /**
+   * Создаёт phone-пользователя без пароля: `username` = телефон (Keycloak 26
+   * резолвит username/email по `login_hint`, иначе CIBA его не найдёт),
+   * атрибуты `phoneNumber`/`phoneVerified`, профиль заполнен (требование
+   * user-profile в KC 26 — иначе пользователь «not fully set up»).
+   * Ошибки: `ContactAlreadyExistsError` (409).
+   */
+  createPhoneUser(params: {
+    phone: string;
+    firstName: string;
+    lastName: string;
+  }): Promise<{ keycloakId: string }>;
+
+  /** Поиск по username (используется, когда Keycloak не отдал `Location`). */
+  findByUsername(username: string): Promise<IdentityAdminUser | null>;
+
   findByEmail(email: string): Promise<IdentityAdminUser | null>;
 
   /** Просит Keycloak отправить письмо-подтверждение (realm SMTP). */

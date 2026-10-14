@@ -71,12 +71,13 @@ export class KeycloakAdapter implements IdentityProviderPort {
   async verifyAccessToken(token: string): Promise<TokenClaims> {
     try {
       const payload = (await this.jwtVerifier.verify(token)) as KeycloakJwtPayload;
-      if (!payload.sub || !payload.email) {
-        throw new Error('JWT missing required claims (sub/email)');
+      if (!payload.sub) {
+        throw new Error('JWT missing required claim (sub)');
       }
       return {
         sub: payload.sub,
-        email: payload.email,
+        // Phone-пользователь (Phase 2) существует без email — это не ошибка.
+        email: payload.email ?? null,
         roles: payload.realm_access?.roles ?? [],
       };
     } catch (err) {

@@ -92,4 +92,63 @@ export class KeycloakHttpClient {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   }
+
+  private get cibaAuthUrl(): string {
+    return `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/ext/ciba/auth`;
+  }
+
+  private get cibaCallbackUrl(): string {
+    return `${this.cibaAuthUrl}/callback`;
+  }
+
+  /** CIBA шаг 1: заявка на backchannel-аутентификацию (ADR-0015). */
+  async backchannelAuth(params: {
+    loginHint: string;
+    bindingMessage: string;
+    scope?: string;
+  }): Promise<{ auth_req_id: string; expires_in: number; interval?: number }> {
+    const body = new URLSearchParams({
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      login_hint: params.loginHint,
+      binding_message: params.bindingMessage,
+      scope: params.scope ?? 'openid profile',
+    });
+    const { data } = await axios.post<{
+      auth_req_id: string;
+      expires_in: number;
+      interval?: number;
+    }>(this.cibaAuthUrl, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    return data;
+  }
+
+  /** CIBA шаг 4: обмен подтверждённой заявки на токены. */
+  async cibaGrant(authReqId: string): Promise<KeycloakTokenResponse> {
+    const body = new URLSearchParams({
+      grant_type: 'urn:openid:params:grant-type:ciba',
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      auth_req_id: authReqId,
+    });
+    const { data } = await axios.post<KeycloakTokenResponse>(this.tokenUrl, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    return data;
+  }
+
+  /** CIBA шаг 3: решение канала — тем же Bearer-токеном, что пришёл в уведомлении. */
+  async cibaCallback(params: { channelToken: string; decision: string }): Promise<void> {
+    await axios.post(
+      this.cibaCallbackUrl,
+      { status: params.decision },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${params.channelToken}`,
+        },
+      },
+    );
+  }
 }

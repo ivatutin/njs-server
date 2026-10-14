@@ -253,6 +253,12 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    - Direct access grants: **On** (используется `POST /auth/sign-in`);
    - Service accounts / нужные flows — по требованиям модуля auth.
 4. Скопируй из вкладки **Credentials → Client secret**.
+5. Включи CIBA для клиента `app-backend` — без него phone-регистрация/вход не смогут выдать токены
+   (ADR-0015): **Advanced → CIBA** или атрибут `oidc.ciba.grant.enabled=true`.
+   Адрес нашего канала аутентификации Keycloak берёт из окружения compose
+   (`KC_SPI_CIBA_AUTH_CHANNEL__CIBA_HTTP_AUTH_CHANNEL__HTTP_AUTHENTICATION_CHANNEL_URI`),
+   по умолчанию — `http://app-backend:${APP_PORT:-3001}/${APP_PATH_PREFIX:-api/v1}/internal/ciba/channel`.
+   Эндпоинт внутренний: наружу его публиковать не нужно (доступен только из сети compose).
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

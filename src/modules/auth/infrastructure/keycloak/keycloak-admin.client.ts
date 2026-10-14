@@ -71,6 +71,15 @@ export class KeycloakAdminClient {
     return response.data;
   }
 
+  /** Поиск по username: нужен phone-пользователям (у них нет email). */
+  async findUsersByUsername(username: string): Promise<KeycloakAdminUserRepresentation[]> {
+    const response = await axios.get<KeycloakAdminUserRepresentation[]>(`${this.adminUrl}/users`, {
+      ...(await this.auth()),
+      params: { username, exact: true },
+    });
+    return response.data;
+  }
+
   /**
    * Просит Keycloak отправить письмо-подтверждение.
    *

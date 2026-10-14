@@ -18,4 +18,13 @@ export class PrismaContactLookup implements ContactLookup {
     });
     return row !== null;
   }
+
+  /** `phone` в модели — `@unique`, поэтому это точечный lookup, а не сканирование. */
+  async findKeycloakIdByPhone(phone: string): Promise<string | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { phone },
+      select: { keycloakId: true },
+    });
+    return row?.keycloakId ?? null;
+  }
 }

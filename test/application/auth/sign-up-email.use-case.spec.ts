@@ -36,6 +36,8 @@ describe('SignUpEmailUseCase', () => {
       sendVerifyEmail: jest.fn().mockResolvedValue(undefined),
       sendPasswordResetEmail: jest.fn(),
       findEmailVerificationEvents: jest.fn(),
+      createPhoneUser: jest.fn(),
+      findByUsername: jest.fn(),
     };
     users = { ensureFromIdentity: jest.fn().mockResolvedValue(PROVISIONED_USER) };
     useCase = new SignUpEmailUseCase(identityAdmin, users);

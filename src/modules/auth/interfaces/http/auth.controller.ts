@@ -20,6 +20,13 @@ import { ResendVerifyEmailCommand } from '../../application/use-cases/resend-ver
 import { ResendVerifyEmailUseCase } from '../../application/use-cases/resend-verify-email/resend-verify-email.use-case';
 import { ForgotPasswordCommand } from '../../application/use-cases/forgot-password/forgot-password.command';
 import { ForgotPasswordUseCase } from '../../application/use-cases/forgot-password/forgot-password.use-case';
+import { SignUpPhoneDto } from './dto/sign-up-phone.dto';
+import { SignInPhoneDto } from './dto/sign-in-phone.dto';
+import { SignUpPhoneResponseDto } from './dto/sign-up-phone-response.dto';
+import { SignUpPhoneCommand } from '../../application/use-cases/sign-up-phone/sign-up-phone.command';
+import { SignUpPhoneUseCase } from '../../application/use-cases/sign-up-phone/sign-up-phone.use-case';
+import { SignInPhoneCommand } from '../../application/use-cases/sign-in-phone/sign-in-phone.command';
+import { SignInPhoneUseCase } from '../../application/use-cases/sign-in-phone/sign-in-phone.use-case';
 import { Public } from '@shared/interfaces/http/decorators/public.decorator';
 
 @ApiTags('Auth')
@@ -32,7 +39,63 @@ export class AuthController {
     private readonly signUpEmailUC: SignUpEmailUseCase,
     private readonly resendVerifyEmailUC: ResendVerifyEmailUseCase,
     private readonly forgotPasswordUC: ForgotPasswordUseCase,
+    private readonly signUpPhoneUC: SignUpPhoneUseCase,
+    private readonly signInPhoneUC: SignInPhoneUseCase,
   ) {}
+
+  @Public()
+  @Post('sign-up/phone')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Sign up with phone',
+    description:
+      'Creates a Keycloak user (username = phone, no password) and a local user with a verified ' +
+      'phone, then issues tokens via CIBA. The verificationToken comes from POST /auth/otp/verify ' +
+      'or from the call channel (POST /auth/phone/call) and must have purpose=sign-up.',
+  })
+  @ApiResponse({ status: 201, type: SignUpPhoneResponseDto })
+  @ApiResponse({ status: 409, description: 'ContactAlreadyExists' })
+  @ApiResponse({
+    status: 422,
+    description: 'VerificationTokenInvalid | VerificationTokenExpired | TermsNotAccepted',
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'Token issuance failed (identity provider unavailable)',
+  })
+  async signUpPhone(@Body() dto: SignUpPhoneDto): Promise<SignUpPhoneResponseDto> {
+    const result = await this.signUpPhoneUC.execute(
+      new SignUpPhoneCommand(
+        dto.phone,
+        dto.verificationToken,
+        dto.acceptedTerms,
+        dto.firstName ?? null,
+        dto.lastName ?? null,
+      ),
+    );
+    return AuthHttpMapper.toSignUpPhoneResponse(result);
+  }
+
+  @Public()
+  @Post('sign-in/phone')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Sign in with phone',
+    description:
+      'Exchanges a verificationToken (purpose=sign-in, from the SMS code or the call channel) for ' +
+      'a token pair. Unknown numbers get the same 401 InvalidCredentials as a wrong code ' +
+      '(anti-enumeration) and never reach Keycloak.',
+  })
+  @ApiResponse({ status: 200, type: TokenPairResponseDto })
+  @ApiResponse({ status: 401, description: 'InvalidCredentials' })
+  @ApiResponse({ status: 422, description: 'VerificationTokenInvalid | VerificationTokenExpired' })
+  @ApiResponse({
+    status: 503,
+    description: 'Token issuance failed (identity provider unavailable)',
+  })
+  async signInPhone(@Body() dto: SignInPhoneDto): Promise<TokenPairResponseDto> {
+    return this.signInPhoneUC.execute(new SignInPhoneCommand(dto.phone, dto.verificationToken));
+  }
 
   @Public()
   @Post('sign-in')

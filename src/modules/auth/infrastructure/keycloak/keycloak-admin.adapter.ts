@@ -63,6 +63,60 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     return this.toUser(users[0]);
   }
 
+  async createPhoneUser(params: {
+    phone: string;
+    firstName: string;
+    lastName: string;
+  }): Promise<{ keycloakId: string }> {
+    try {
+      const keycloakId = await this.client.createUser({
+        username: params.phone,
+        enabled: true,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        // Наши атрибуты: по ним же ищем пользователя и отличаем подтверждённый
+        // телефон от неподтверждённого (Keycloak пароль не выдаёт — вход только
+        // через верификацию телефона, ADR-0014/ADR-0015).
+        attributes: {
+          phoneNumber: [params.phone],
+          phoneVerified: ['true'],
+        },
+      });
+
+      if (keycloakId) return { keycloakId };
+
+      const created = await this.findByUsername(params.phone);
+      if (!created) throw new Error('Keycloak user was created but cannot be located by username');
+      return { keycloakId: created.keycloakId };
+    } catch (err) {
+      this.logKeycloakRejection('createPhoneUser', err);
+      throw this.mapCreateUserError(err);
+    }
+  }
+
+  /**
+   * Keycloak на 400 отвечает телом вида
+   * `{"errors":[{"field":"firstName","errorMessage":"error-person-name-invalid-character"}]}`.
+   * Без него диагностика «почему не создался пользователь» превращается в гадание:
+   * у `AxiosError` в сообщении только статус.
+   */
+  private logKeycloakRejection(operation: string, err: unknown): void {
+    const response = (err as { response?: { status?: number; data?: unknown } })?.response;
+    if (!response) return;
+    this.logger.warn(
+      `${operation} rejected by Keycloak (${response.status ?? 'n/a'}): ${JSON.stringify(response.data)}`,
+    );
+  }
+
+  async findByUsername(username: string): Promise<IdentityAdminUser | null> {
+    const users = await this.client.findUsersByUsername(username);
+    if (users.length === 0) return null;
+    if (users.length > 1) {
+      this.logger.warn(`Keycloak returned ${users.length} users for one username — берём первый`);
+    }
+    return this.toUser(users[0]);
+  }
+
   async sendVerifyEmail(keycloakId: string): Promise<void> {
     await this.client.sendVerifyEmail(keycloakId);
   }

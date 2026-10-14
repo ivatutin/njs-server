@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { VERIFICATION_TOKEN_CONSUMER } from '@shared/application/verification-token-consumer.interface';
 import { PhoneCallRefresher } from './application/services/phone-call-refresher.service';
 import { GetPhoneCallStatusUseCase } from './application/use-cases/get-phone-call-status/get-phone-call-status.use-case';
 import { RefreshPhoneCallStatusUseCase } from './application/use-cases/refresh-phone-call-status/refresh-phone-call-status.use-case';
@@ -18,6 +19,7 @@ import { Argon2OtpHasher } from './infrastructure/hashing/argon2-otp.hasher';
 import { RedisOtpChallengeStore } from './infrastructure/persistence/redis-otp-challenge.store';
 import { RedisOtpRateLimiter } from './infrastructure/rate-limit/redis-otp.rate-limiter';
 import { ConsoleSmsSender } from './infrastructure/sms/console-sms.sender';
+import { OtpVerificationTokenConsumer } from './infrastructure/tokens/otp-verification-token.consumer';
 import { RedisVerificationTokenIssuer } from './infrastructure/tokens/redis-verification-token.issuer';
 import { OtpController } from './interfaces/http/otp.controller';
 import { PhoneCallController } from './interfaces/http/phone-call.controller';
@@ -34,10 +36,11 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
  * вытесняет предыдущий челлендж на `(target, purpose)` (кросс-канальное вытеснение).
  *
  * `CONTACT_LOOKUP` приходит из user-модуля через shared-порт — импорта модулей нет.
- * `VERIFICATION_TOKEN_ISSUER` пока не экспортируется: потребитель появится
- * в Phase 2 (sign-up/sign-in по phone), тогда же будет решён способ доступа
- * (отдельный shared-порт для consume, а не импорт модуля).
+ * Наружу отдаётся ровно один токен — `VERIFICATION_TOKEN_CONSUMER`: auth-контекст
+ * (Phase 2/4) проверяет предъявленный `verificationToken` через shared-порт, а не
+ * импортом модуля. Поэтому модуль помечен `@Global`.
  */
+@Global()
 @Module({
   controllers: [OtpController, PhoneCallController, SmsruCallbackController],
   providers: [
@@ -51,6 +54,8 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
     { provide: OTP_HASHER, useClass: Argon2OtpHasher },
     { provide: OTP_RATE_LIMITER, useClass: RedisOtpRateLimiter },
     { provide: VERIFICATION_TOKEN_ISSUER, useClass: RedisVerificationTokenIssuer },
+    // Shared-порт для других контекстов: предъявить verificationToken (Phase 2/4)
+    { provide: VERIFICATION_TOKEN_CONSUMER, useClass: OtpVerificationTokenConsumer },
     // DEV: код печатается в лог; в проде — Twilio/SMS.ru тем же токеном
     { provide: SMS_SENDER, useClass: ConsoleSmsSender },
     // Звонковый канал: боевой SMS.ru callcheck либо dev-заглушка (fail-closed в проде)
@@ -66,5 +71,6 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
       ): PhoneCallProvider => (config.get<boolean>('smsru.callcheckEnabled') ? smsru : dev),
     },
   ],
+  exports: [VERIFICATION_TOKEN_CONSUMER],
 })
 export class OtpModule {}

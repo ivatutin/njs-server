@@ -183,6 +183,9 @@ describe('DomainError.code', () => {
         'PasswordPolicyViolation',
         'TermsNotAccepted',
         'UserNotFound',
+        // Phase 2 (ADR-0015): предъявление verificationToken в sign-up/sign-in по phone
+        'VerificationTokenExpired',
+        'VerificationTokenInvalid',
       ]);
     });
   });

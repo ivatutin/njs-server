@@ -190,26 +190,46 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 ## 🟡 Phase 2 — Phone-регистрация и вход
 
-Требует Phase 0 (verificationToken) + выбранный механизм выдачи Keycloak-токенов пользователю (отдельное решение: legacy Token Exchange V1 требует FGAP v1 и помечен deprecated; рассмотрены CIBA и JWT Authorization Grant — см. ADR-0014).
+Требует Phase 0 (verificationToken) + выбранный механизм выдачи Keycloak-токенов пользователю.
+**Механизм выбран: CIBA (ADR-0015)**; конфигурация — клиентский флаг + SPI-URI канала в обоих compose-файлах.
 
-- [ ] `POST /auth/sign-up/phone` — public
+- [x] `POST /auth/sign-up/phone` — public
   - body: `{ phone /* E.164 */, verificationToken, acceptedTerms: true, firstName?, lastName? }`
   - 201 → `{ user, tokens }`
-  - Keycloak: passwordless `users.create({ username: uuid(), attributes: { phoneNumber: [phone], phoneVerified: ['true'] }, credentials: [] })`, status `active`; дальнейшая выдача токенов — выбранным механизмом (см. заголовок Phase 2)
+  - Keycloak: passwordless `users.create({ username: phone, attributes: { phoneNumber: [phone], phoneVerified: ['true'] } })`; `username` — телефон, потому что CIBA-`login_hint` резолвится только по username/email (ADR-0015); имена при отсутствии в запросе — нейтральные (`Пользователь` / `—`, требование user-profile KC 26)
+  - shadow-пользователь создаётся сразу с подтверждённым телефоном (`phoneVerified: true`) → `status: active`
   - `verificationToken` приходит из любого канала: OTP-код (Phase 0) или обратный звонок (Phase 2.5)
-  - `422 VerificationTokenInvalid` / `VerificationTokenExpired` · `409 ContactAlreadyExists`
+  - `422 VerificationTokenInvalid` / `VerificationTokenExpired` · `409 ContactAlreadyExists` · `503` при отказе выдачи токенов
 
-- [ ] `POST /auth/sign-in/phone` — public
+- [x] `POST /auth/sign-in/phone` — public
   - body: `{ phone, verificationToken /* purpose='sign-in' */ }`
   - 200 → `TokenPair`
-  - lookup по attribute `phoneNumber` → нет → `401 InvalidCredentials` (**тот же ответ**, что при wrong OTP — anti-enum) → иначе выдача токенов тем же механизмом, что в sign-up
+  - lookup по shadow-индексу (`User.phone` — `@unique`) → нет → `401 InvalidCredentials` (**тот же ответ**, что при wrong OTP, и **ни одного** запроса в Keycloak — anti-enum) → иначе выдача токенов тем же механизмом
 
 **Инфра:**
-- [ ] механизм выдачи токенов выбран, оформлен ADR, нужные фичи Keycloak включены — **спайк пройден (14.10.2026): CIBA работает end-to-end (уведомление канала → callback → токены с реальной сессией), конфигурация runtime; см. `docs/research/token-minting.md`**
-- [ ] service account с `realm-management/manage-users` (создание и поиск пользователя)
-- [ ] lookup user по `phoneNumber` attribute (индекс в Postgres shadow)
+- [x] механизм выдачи токенов выбран и оформлен: **ADR-0015 (CIBA)** — клиентский флаг `oidc.ciba.grant.enabled=true` + `KC_SPI_CIBA_AUTH_CHANNEL__CIBA_HTTP_AUTH_CHANNEL__HTTP_AUTHENTICATION_CHANNEL_URI` (в `docker-compose.yml` и `docker-compose.prod.yml`)
+- [x] service account с `realm-management/manage-users` (создание и поиск пользователя)
+- [x] lookup user по телефону — через shadow-таблицу (`User.phone @unique`), отдельный индекс не нужен
+- [x] доступ к `verificationToken` из auth-контекста — shared-порт `VERIFICATION_TOKEN_CONSUMER` (OTP-модуль `@Global` отдаёт только его), без импорта модуля модулем
 
 **Коды:** `VerificationTokenInvalid`, `VerificationTokenExpired`, `ContactAlreadyExists`, `InvalidCredentials`.
+
+**Acceptance Phase 2 — ✅ пройден на живом стеке (14.10.2026, Keycloak 26.8.0, CIBA):**
+```
+otp/send (sign-up, +7999 000-01-10)      → 200 { challengeId, target '+7 (***) ***-01-10', cooldownSeconds 60 }
+otp/verify                               → 200 { verified: true, verificationToken }
+sign-up/phone                            → 201 за ~5 с:
+  { user: { phone '+79990000110', phoneVerified true, firstName 'Иван', lastName 'Петров', status 'active' },
+    tokens: { accessToken, refreshToken, expiresIn 300 } }     ← токены CIBA, сессия реальная
+GET /users/me (этим accessToken)         → 200 { тот же user, status 'active', email null }
+otp/send (sign-in, тот же номер)         → 200
+sign-in/phone                            → 200 TokenPair за ~11 с (заявка → подтверждение → опрос)
+POST /auth/refresh (его refreshToken)    → 200 TokenPair; GET /users/me с новым токеном → 200
+Keycloak: users?username=%2B79990000110  → username '+79990000110', attributes { phoneNumber, phoneVerified }, sessions: clients=app-backend
+Канал: POST /internal/ciba/channel без Bearer → 401 (заявку нельзя подтвердить «снаружи»)
+Живые ограничения: callback — только после ответа 201 (иначе 403 invalid_token),
+                   первый опрос токенов — не раньше interval (иначе 400 slow_down / too early to access)
+```
 
 ---
 

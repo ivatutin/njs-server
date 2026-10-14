@@ -11,7 +11,7 @@ export class UserSignedInEvent implements DomainEvent {
   readonly occurredOn: Date;
   readonly payload: Record<string, unknown>;
 
-  constructor(data: { keycloakId: string; email: string; roles: string[] }) {
+  constructor(data: { keycloakId: string; email: string | null; roles: string[] }) {
     this.occurredOn = new Date();
     this.payload = { ...data };
   }

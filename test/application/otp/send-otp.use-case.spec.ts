@@ -20,7 +20,7 @@ describe('SendOtpUseCase', () => {
 
   beforeEach(() => {
     rateLimiter = { consume: jest.fn().mockResolvedValue({ allowed: true }) };
-    contacts = { existsByPhone: jest.fn().mockResolvedValue(false) };
+    contacts = { existsByPhone: jest.fn().mockResolvedValue(false), findKeycloakIdByPhone: jest.fn() };
     store = {
       save: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn(),

@@ -9,6 +9,7 @@
 export interface TokenClaims {
   /** Stable user id assigned by the identity provider. */
   sub: string;
-  email: string;
+  /** `null` для phone-пользователей: email у них не обязателен (Phase 2). */
+  email: string | null;
   roles: string[];
 }

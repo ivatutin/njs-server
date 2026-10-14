@@ -19,6 +19,8 @@ services:
     environment:
       KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
       KC_HTTP_ENABLED: "true"
+      # Канал аутентификации CIBA (ADR-0015) — внутренний адрес приложения
+      KC_SPI_CIBA_AUTH_CHANNEL__CIBA_HTTP_AUTH_CHANNEL__HTTP_AUTHENTICATION_CHANNEL_URI: ${CIBA_CHANNEL_URL:-http://app-backend:${APP_PORT:-3001}/${APP_PATH_PREFIX:-api/v1}/internal/ciba/channel}
 
   app:
     restart: always

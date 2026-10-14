@@ -17,7 +17,9 @@ export class UserProvisioningAdapter implements UserProvisioning {
 
   async ensureFromIdentity(params: {
     keycloakId: string;
-    email: string;
+    email?: string | null;
+    phone?: string | null;
+    phoneVerified?: boolean;
     firstName?: string | null;
     lastName?: string | null;
   }): Promise<ProvisionedUser> {
@@ -26,7 +28,7 @@ export class UserProvisioningAdapter implements UserProvisioning {
 
     if (existing) {
       const currentEmail = existing.email?.toString() ?? null;
-      if (currentEmail !== params.email) {
+      if (params.email && currentEmail !== params.email) {
         this.logger.warn(
           `Email drift for kc=${keycloakShort}...: "${currentEmail}" -> "${params.email}" ` +
             `(синхронизация контакта — отдельный flow, Phase 4)`,
@@ -37,12 +39,20 @@ export class UserProvisioningAdapter implements UserProvisioning {
 
     const user = User.create({
       keycloakId: params.keycloakId,
-      email: params.email,
+      email: params.email ?? null,
+      phone: params.phone ?? null,
       firstName: params.firstName ?? null,
       lastName: params.lastName ?? null,
     });
+
+    // Phone-регистрация приходит уже с подтверждённым номером (Phase 2): помечаем
+    // контакт verified — это активирует пользователя без ожидания события.
+    if (params.phoneVerified) user.verifyPhone();
+
     await this.userRepo.save(user);
-    this.logger.log(`Provisioned local user for kc=${keycloakShort}... (pending_verification)`);
+    this.logger.log(
+      `Provisioned local user for kc=${keycloakShort}... (${user.status.getValue()})`,
+    );
 
     return this.toView(user);
   }

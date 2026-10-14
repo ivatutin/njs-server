@@ -79,6 +79,10 @@ services:
       KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8088}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      # Канал аутентификации CIBA (ADR-0015): когда бэкенд заказывает токены для
+      # phone-пользователя, Keycloak зовёт наш внутренний эндпоинт. Порт/префикс —
+      # те же, что у app-backend внутри сети compose.
+      KC_SPI_CIBA_AUTH_CHANNEL__CIBA_HTTP_AUTH_CHANNEL__HTTP_AUTHENTICATION_CHANNEL_URI: ${CIBA_CHANNEL_URL:-http://app-backend:${APP_PORT:-3001}/${APP_PATH_PREFIX:-api/v1}/internal/ciba/channel}
       KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       KC_HEALTH_ENABLED: "true"
