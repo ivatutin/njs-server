@@ -299,7 +299,11 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 > **Контракт-предложение готово и ждёт координатора:** `docs/contract-proposals/auth-v1.3-social.md` (**Proposed**) —
 > 3 эндпоинта, 2 кода (`SocialAuthFailed`, `ProviderAccountLinked`) и 6 открытых вопросов (state/PKCE, политика линковки,
-> `needsContactCompletion`, формат данных VK/Yandex, состав MVP). Ниже — исходный список из чек-листа.
+> `needsContactCompletion`, формат данных VK/Yandex, состав MVP). Механизм — `docs/adr/0016-social-login-providers.md`
+> (**Proposed**). Ниже — исходный список из чек-листа.
+>
+> **Предусловия в dev-реестре (проверено 14.10.2026):** IdP не настроено ни одного, браузерного клиента для фронта нет
+> (есть только `app-backend` и служебные) → нужны публичный клиент `app-web` с PKCE + настройка IdP (для dev — Google/GitHub).
 
 - [ ] `GET /auth/providers` → `ProviderDescriptor[]`
 - [ ] `POST /auth/oidc/callback` — `{ code, state, codeVerifier, redirectUri }` → `{ user, tokens, needsContactCompletion? }` (Keycloak-brokered: Google/GitHub/VK/Yandex если Generic OIDC заведётся)
