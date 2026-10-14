@@ -73,6 +73,10 @@ services:
       # (KEYCLOAK_ADMIN* удалены), но имена наших .env-переменных не меняем
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Публичный адрес Keycloak: им подписываются токены (iss) и строятся ссылки
+      # в письмах, поэтому в dev это адрес, доступный браузеру с хоста.
+      # В проде docker-compose.prod.yml переопределяет на боевой домен (ADR-0013).
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8088}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
@@ -122,6 +126,9 @@ services:
       # чтобы локальный REDIS_PORT из .env не протекал в контейнер
       REDIS_PORT: 6379
       KEYCLOAK_URL: http://keycloak:8080
+      # Какой `iss` ожидать в токенах: Keycloak считает себя KC_HOSTNAME
+      # (публичный адрес), а звоним мы по внутреннему KEYCLOAK_URL — см. ADR-0013
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-http://localhost:8088/realms/${KEYCLOAK_REALM:-app}}
     ports:
       - "${APP_PORT:-3001}:3001"
     depends_on:

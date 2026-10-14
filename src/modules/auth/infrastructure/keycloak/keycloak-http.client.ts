@@ -21,12 +21,14 @@ export class KeycloakHttpClient {
   private readonly realm: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
+  private readonly issuer: string;
 
   constructor(config: ConfigService) {
     this.baseUrl = config.get<string>('keycloak.url')!;
     this.realm = config.get<string>('keycloak.realm')!;
     this.clientId = config.get<string>('keycloak.clientId')!;
     this.clientSecret = config.get<string>('keycloak.clientSecret')!;
+    this.issuer = config.get<string>('keycloak.issuer')!;
   }
 
   /** URL of the JWKS endpoint — public keys for verifying access tokens. */
@@ -34,9 +36,14 @@ export class KeycloakHttpClient {
     return `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/certs`;
   }
 
-  /** Issuer URL — must match the `iss` claim inside Keycloak-issued JWTs. */
+  /**
+   * Issuer URL — must match the `iss` claim inside Keycloak-issued JWTs.
+   * Задаётся отдельным конфигом (`KEYCLOAK_ISSUER`), потому что адрес, по
+   * которому приложение зовёт Keycloak, и адрес, которым Keycloak себя считает
+   * (KC_HOSTNAME), могут различаться (см. ADR-0013).
+   */
   get issuerUrl(): string {
-    return `${this.baseUrl}/realms/${this.realm}`;
+    return this.issuer;
   }
 
   private get tokenUrl(): string {

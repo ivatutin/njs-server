@@ -13,6 +13,8 @@ const envSchema = z.object({
   KEYCLOAK_REALM: z.string(),
   KEYCLOAK_CLIENT_ID: z.string(),
   KEYCLOAK_CLIENT_SECRET: z.string(),
+  // Ожидаемый issuer токенов; по умолчанию = KEYCLOAK_URL + /realms/ + KEYCLOAK_REALM
+  KEYCLOAK_ISSUER: z.string().url().optional(),
   THROTTLE_TTL: z.coerce.number().default(60),
   THROTTLE_LIMIT: z.coerce.number().default(100),
 });
