@@ -66,6 +66,7 @@ export abstract class DomainError extends Error {
 - [x] хеш кода argon2id (не хранить plaintext), max 5 попыток → lock
 - [x] rate-limit: per-target 3/час + per-IP 10/час + cooldown 60 c
 - [x] SMS-абстракция (порт `SmsSender`) + dev-реализация (лог в консоль), prod — Twilio/SMS.ru тем же токеном
+- [ ] звонковая верификация: порт `PHONE_CALL_PROVIDER` + dev-заглушка, prod — SMS.ru callcheck — вынесено в Phase 2.5 (ADR-0014)
 - [x] маскирование target для ответа: формат контракта `+7 (***) ***-12-34`, видимы реальные последние 4 цифры
 
 **Эндпоинты:**
@@ -90,6 +91,8 @@ export abstract class DomainError extends Error {
   - `422 OtpTooManyAttempts` — ≥5 неверных → challenge locked, нужен resend
 
 **Коды для реестра:** `OtpInvalid`, `OtpExpired`, `OtpTooManyAttempts`, `OtpRateLimited` — уже были в реестре (v1.0), новых кодов не потребовалось; `ContactAlreadyExists` переиспользован. Для `details.retryAfter` у `DomainError` появилось поле `details`.
+
+> `verificationToken` (контракт v1.2) выдаётся из **двух** источников: OTP-код (выше) и подтверждение обратного звонка (Phase 2.5). Ключ, TTL и одноразовость те же, поэтому потребители (`sign-up/phone`, `sign-in/phone`, `set-password`) не меняются.
 
 **Acceptance Phase 0 — ✅ пройден на живом стеке (09.10.2026):**
 ```
@@ -187,24 +190,60 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 ## 🟡 Phase 2 — Phone-регистрация и вход
 
-Требует Phase 0 (verificationToken) + Token Exchange в Keycloak.
+Требует Phase 0 (verificationToken) + выбранный механизм выдачи Keycloak-токенов пользователю (отдельное решение: legacy Token Exchange V1 требует FGAP v1 и помечен deprecated; рассмотрены CIBA и JWT Authorization Grant — см. ADR-0014).
 
 - [ ] `POST /auth/sign-up/phone` — public
   - body: `{ phone /* E.164 */, verificationToken, acceptedTerms: true, firstName?, lastName? }`
   - 201 → `{ user, tokens }`
-  - Keycloak: passwordless `users.create({ username: uuid(), attributes: { phoneNumber: [phone], phoneVerified: ['true'] }, credentials: [] })`, status `active`, auto-login через Token Exchange
+  - Keycloak: passwordless `users.create({ username: uuid(), attributes: { phoneNumber: [phone], phoneVerified: ['true'] }, credentials: [] })`, status `active`; дальнейшая выдача токенов — выбранным механизмом (см. заголовок Phase 2)
+  - `verificationToken` приходит из любого канала: OTP-код (Phase 0) или обратный звонок (Phase 2.5)
   - `422 VerificationTokenInvalid` / `VerificationTokenExpired` · `409 ContactAlreadyExists`
 
 - [ ] `POST /auth/sign-in/phone` — public
   - body: `{ phone, verificationToken /* purpose='sign-in' */ }`
   - 200 → `TokenPair`
-  - lookup по attribute `phoneNumber` → нет → `401 InvalidCredentials` (**тот же ответ**, что при wrong OTP — anti-enum) → иначе Token Exchange
+  - lookup по attribute `phoneNumber` → нет → `401 InvalidCredentials` (**тот же ответ**, что при wrong OTP — anti-enum) → иначе выдача токенов тем же механизмом, что в sign-up
 
 **Инфра:**
-- [ ] Token Exchange (RFC 8693) включён в Keycloak; service account с `realm-management/manage-users`
+- [ ] механизм выдачи токенов выбран, оформлен ADR, нужные фичи Keycloak включены
+- [ ] service account с `realm-management/manage-users` (создание и поиск пользователя)
 - [ ] lookup user по `phoneNumber` attribute (индекс в Postgres shadow)
 
 **Коды:** `VerificationTokenInvalid`, `VerificationTokenExpired`, `ContactAlreadyExists`, `InvalidCredentials`.
+
+---
+
+## 🟡 Phase 2.5 — Обратный звонок (SMS.ru callcheck)
+
+Второй канал подтверждения телефона — по бизнес-требованию **основной**; SMS-код остаётся как fallback.
+Контракт — предложение v1.2 (`docs/contract-proposals/auth-v1.2-phone-call-verification.md`), решение — ADR-0014.
+
+Принцип: **вебхук только фиксирует `verified` и выдаёт `verificationToken`**, минт Keycloak-токенов остаётся
+в `sign-up/phone` / `sign-in/phone`. Верификация и выдача токенов друг от друга не зависят.
+
+**Эндпоинты (после принятия контракта v1.2):**
+
+- [ ] `POST /auth/phone/call` — public
+  - body: `{ phone, purpose }` (тот же enum purpose, что у `otp/send`)
+  - 200 → `{ challengeId, channel: 'phone', method: 'call', callTo, expiresAt /* +5 мин */, cooldownSeconds: 60, otpFallback: true }`
+  - `409 ContactAlreadyExists` (только `purpose='sign-up'`) · `422 OtpRateLimited` + `details.retryAfter` · `503` при недоступности провайдера
+  - **anti-enum:** `purpose='sign-in'` → всегда 200 (заявка создаётся и для незарегистрированного номера)
+
+- [ ] `GET /auth/phone/call/:challengeId` — public
+  - 200 → `{ status: 'pending' }` · 200 → `{ status: 'verified', verificationToken }`
+  - `422 CallChallengeExpired` (окно истекло / челлендж неизвестен или вытеснен новым стартом) · `422 CallChallengeFailed` + `details.reason`
+
+**Инфра:**
+- [ ] порт `PHONE_CALL_PROVIDER` (`start` / `status`) + адаптер `SmsRuCallcheckProvider`: `callcheck/add` и `callcheck/status`, `ip` = **IP пользователя** (`resolveClientIp`)
+- [ ] челлендж-стор: поля `method`, `providerCheckId`, `callTo`; индекс `otp:call:<check_id>` → `challengeId`; `otp:active:<sha256(target|purpose)>` вытесняет прошлый челлендж (**обязательно**: привязка звонка идёт по A-номеру, параллельные заявки на один номер недопустимы)
+- [ ] вебхук провайдера (публичный `https`, **вне фронтового контракта**): тело не доверяем → `callcheck/status` → атомарный переход в `verified` (`SET NX`) + одноразовая выдача `verificationToken`
+- [ ] polling-fallback: `GET`-эндпоинт сам опрашивает провайдера (троттлинг ≥5 с) — работает без публичного вебхука (dev/CI)
+- [ ] `SMSRU_API_ID` (+ `SMSRU_CALLCHECK_ENABLED`) в `env.validation.ts` / `.env.example`; в dev/CI — фейк-провайдер
+- [ ] маппинг кодов провайдера: `400 → pending`, `401 → verified`, `402 → expired`, `202 → failed`, `508 → OtpRateLimited`, `301/302 → 5xx + алерт` (провайдерский `401` = «номер подтверждён» — тест обязателен)
+
+**Уточнить у SMS.ru (блокеры дизайна):** формат тела вебхука и наличие подписи, IP-адреса отправителя для allowlist, цена, лимиты (`508`), поведение при скрытом номере (CLIR), отмена заявки.
+
+**Коды:** `CallChallengeExpired`, `CallChallengeFailed` (аддитивно, контракт v1.2).
 
 ---
 
@@ -248,9 +287,10 @@ Advanced-операции (сессии, отвязка провайдеров, 
 | 🔴 0 | 2 | OtpModule, Redis, argon2id, SMS-абстракция |
 | 🔴 1 | 2 | Keycloak event listener |
 | 🟡 1.5 | 1 | — |
-| 🟡 2 | 2 | Token Exchange |
+| 🟡 2 | 2 | механизм выдачи токенов (решение отдельно) |
+| 🟡 2.5 | 2 | SMS.ru callcheck + вебхук |
 | 🟢 3 | 3 | HMAC/OIDC, federated identity |
 | 🟢 4 | 6 | reauth (Redis one-shot) |
-| **Итого** | **16** | |
+| **Итого** | **18** | |
 
-**Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в auth-roadmap § «Когда уходим от MSW»).
+**Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в auth-roadmap § «Когда уходим от MSW»).

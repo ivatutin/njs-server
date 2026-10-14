@@ -79,3 +79,4 @@ External resources.
 | [0011](./0011-otp-storage-hashing-and-limits.md) | OTP: Redis, argon2id, лимиты, anti-enumeration | Accepted |
 | [0012](./0012-email-verification-signal.md) | Как узнаём о VERIFY_EMAIL (Admin Events + доменное событие) | Accepted |
 | [0013](./0013-keycloak-issuer-and-public-url.md) | Issuer Keycloak и публичный адрес (KC_HOSTNAME vs KEYCLOAK_URL) | Accepted |
+| [0014](./0014-phone-verification-otp-and-call.md) | Верификация телефона: SMS-код + обратный звонок (SMS.ru callcheck) | Accepted |
