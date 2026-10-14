@@ -142,7 +142,8 @@ export class UserController {
   @ApiOperation({
     summary: 'Verify user email',
     description:
-      'Accepts a code in body but does not validate it yet — verification flow is a placeholder for the future Verification bounded context.',
+      'Admin-only (вне auth-suite): принимает код в body, но не валидирует его — это placeholder. ' +
+      'Self-service подтверждение контакта — POST /auth/otp/* с предъявлением verificationToken.',
   })
   @ApiResponse({ status: 200, type: UserResponseDto })
   async verifyEmail(
@@ -156,7 +157,12 @@ export class UserController {
 
   @Post(':id/phone/verify')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Verify user phone' })
+  @ApiOperation({
+    summary: 'Verify user phone',
+    description:
+      'Admin-only (вне auth-suite): принимает код в body, но не валидирует его — это placeholder. ' +
+      'Self-service подтверждение контакта — POST /auth/otp/* или канал звонка (ADR-0014).',
+  })
   @ApiResponse({ status: 200, type: UserResponseDto })
   async verifyPhone(
     @Param('id', ParseUUIDPipe) id: string,
