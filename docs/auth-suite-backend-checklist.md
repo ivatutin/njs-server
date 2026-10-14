@@ -110,7 +110,9 @@ F2 sign-in на существующий номер   → 200 + строка dev
 
 **Реализация:** `src/modules/otp/*` (domain/application/infrastructure/interfaces) + ADR-0011; проверка занятости номера — shared-порт `CONTACT_LOOKUP` (реализация в user-контексте).
 
-**Осталось вне этого репозитория:** фронт снимает MSW-мок с `/auth/otp/*` (процедура — в `auth-roadmap.md` § «Когда уходим от MSW»).
+**Осталось вне этого репозитория:**
+- фронт снимает MSW-мок с `/auth/otp/*` (процедура — в `auth-roadmap.md` **репозитория фронта**, § «Когда уходим от MSW»).
+- к координатору: в `docs/auth-v1-contract.md` (раздел «Гардрейлы против тихого расхождения») ссылка `[../status.md](../status.md)` ведёт в несуществующий файл. Сам контракт правит только координатор, поэтому здесь не менял — нужно либо создать `status.md`, либо перенаправить ссылку на этот чек-лист.
 
 ---
 
@@ -299,7 +301,7 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 - `needsContactCompletion: true` если у user нет ни email, ни phone
 - **Коды:** `SocialAuthFailed`, `ProviderAccountLinked`
 
-Попытка №1 — Generic OIDC в Keycloak; custom-эндпоинты — fallback (см. risk register в auth-roadmap).
+Попытка №1 — Generic OIDC в Keycloak; custom-эндпоинты — fallback (см. risk register в `auth-roadmap.md` репозитория фронта).
 
 ---
 
@@ -334,4 +336,4 @@ Advanced-операции (сессии, отвязка провайдеров, 
 | 🟢 4 | 6 | reauth (Redis one-shot) |
 | **Итого** | **18** | |
 
-**Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в auth-roadmap § «Когда уходим от MSW»).
+**Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в `auth-roadmap.md` репозитория фронта, § «Когда уходим от MSW»).
