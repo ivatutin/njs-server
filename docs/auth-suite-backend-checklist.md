@@ -234,6 +234,11 @@ Keycloak: users?username=%2B79990000110  → username '+79990000110', attributes
                    первый опрос токенов — не раньше interval (иначе 400 slow_down / too early to access)
 ```
 
+**Dev-фикстуры после acceptance:** в dev-Keycloak и shadow-БД остались пары «Keycloak-пользователь + shadow-строка» для номеров
+`+79990000106`…`+79990000110` (`username` = телефон); `+79990000110` — эталонный кейс из транскрипта выше (у него есть `phoneNumber`/`phoneVerified`
+и сессия `app-backend`). Удалять их нужно **парами** (только KC или только БД — получится drift); `test@test.com` не трогаем.
+Служебные пробы `+7999000020x`/`+7999000021x` удалены.
+
 ---
 
 ## 🟡 Phase 2.5 — Обратный звонок (SMS.ru callcheck)

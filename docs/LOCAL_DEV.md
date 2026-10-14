@@ -74,3 +74,12 @@ docker compose down          # остановить весь стек
 
 - **DNS-подмена.** В этой сети некоторые домены (`binaries.prisma.sh`, иногда `registry.npmjs.org`) резолвятся в заглушку `127.107.x.x`, из-за чего падают `npm install` / `prisma generate` внутри Docker. Решено глобально: в Docker Desktop → Settings → Docker Engine прописан `"dns": ["8.8.8.8", "1.1.1.1"]`.
 - **Prisma 7.** `url` берётся из `prisma.config.ts` (не из `schema.prisma`); клиент импортируется из `src/generated/prisma`. Перед `npm run build` / `start:dev` нужен `npx prisma generate`.
+- **Acceptance auth-suite на dev-стеке.** Коды dev-SMS/звонков читаются из логов приложения:
+  `docker logs app-backend --tail 200` (строка `[dev-sms] … code=123456`; фильтруй по маскированному номеру, а не «первый матч»).
+  Лимитер OTP (per-target и per-IP) не даёт прогнать сценарий подряд — в dev его ключи можно снести:
+  `docker exec app-redis redis-cli --scan --pattern 'otp:*'`, затем `docker exec app-redis redis-cli DEL <ключи>`
+  (кулдаун цели — 60 с, `otp:rl:*` живут до часа).
+- **Русские буквы в JSON из PowerShell.** `Invoke-RestMethod -Body "<json>"` отправляет строку в Latin-1, и Keycloak
+  отклоняет такие имена (`error-person-name-invalid-character`). Отправляй байты:
+  `Invoke-RestMethod -Body ([Text.Encoding]::UTF8.GetBytes($json)) -ContentType 'application/json; charset=utf-8'`.
+  Коды dev-SMS при этом надёжнее читать через `regex` по строке лога конкретного номера.
