@@ -297,6 +297,10 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 ## 🟢 Phase 3 — Social (VK ID / Yandex / Telegram)
 
+> **Контракт-предложение готово и ждёт координатора:** `docs/contract-proposals/auth-v1.3-social.md` (**Proposed**) —
+> 3 эндпоинта, 2 кода (`SocialAuthFailed`, `ProviderAccountLinked`) и 6 открытых вопросов (state/PKCE, политика линковки,
+> `needsContactCompletion`, формат данных VK/Yandex, состав MVP). Ниже — исходный список из чек-листа.
+
 - [ ] `GET /auth/providers` → `ProviderDescriptor[]`
 - [ ] `POST /auth/oidc/callback` — `{ code, state, codeVerifier, redirectUri }` → `{ user, tokens, needsContactCompletion? }` (Keycloak-brokered: Google/GitHub/VK/Yandex если Generic OIDC заведётся)
 - [ ] `POST /auth/providers/:id/callback` — custom flows, `:id ∈ telegram-widget | telegram-bot | vkid | yandex`
