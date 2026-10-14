@@ -19,6 +19,7 @@ describe('ResendVerifyEmailUseCase', () => {
       createEmailUser: jest.fn(),
       findByEmail: jest.fn(),
       sendVerifyEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: jest.fn(),
       findEmailVerificationEvents: jest.fn(),
     };
     useCase = new ResendVerifyEmailUseCase(identityAdmin);

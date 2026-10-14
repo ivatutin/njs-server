@@ -12,6 +12,7 @@ describe('KeycloakEventListenerService', () => {
       createEmailUser: jest.fn(),
       findByEmail: jest.fn(),
       sendVerifyEmail: jest.fn(),
+      sendPasswordResetEmail: jest.fn(),
       findEmailVerificationEvents: jest.fn().mockResolvedValue([]),
     };
     eventBus = {

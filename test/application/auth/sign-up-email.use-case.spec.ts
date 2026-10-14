@@ -34,6 +34,7 @@ describe('SignUpEmailUseCase', () => {
       createEmailUser: jest.fn().mockResolvedValue({ keycloakId: 'kc-1' }),
       findByEmail: jest.fn(),
       sendVerifyEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: jest.fn(),
       findEmailVerificationEvents: jest.fn(),
     };
     users = { ensureFromIdentity: jest.fn().mockResolvedValue(PROVISIONED_USER) };
