@@ -139,6 +139,14 @@ KC_HOSTNAME=auth.example.com
 
 # --- опционально: базовый образ Keycloak для сборки (если CDN quay.io недоступен) ---
 # KEYCLOAK_IMAGE=docker.io/keycloak/keycloak:26.8.0
+
+# --- подтверждение телефона обратным звонком (SMS.ru callcheck, ADR-0014) ---
+# api_id из личного кабинета SMS.ru. Включает боевой канал; без ключа канал
+# отвечает 503, а подтверждение доступно только SMS-кодом.
+SMSRU_API_ID=<КЛЮЧ ИЗ ЛИЧНОГО КАБИНЕТА SMS.RU>
+SMSRU_CALLCHECK_ENABLED=true
+# Публичный https-обработчик (регистрируется у провайдера через callback/add):
+#   https://<домен>/api/v1/callbacks/smsru
 ```
 
 > `DATABASE_URL`, `REDIS_HOST`, `KEYCLOAK_URL` для контейнеров переопределяются внутри `docker-compose.yml` на внутренние имена сервисов (`postgres`, `redis`, `keycloak`) — менять их в `.env` для контейнерного запуска не нужно. Ожидаемый issuer токенов (`KEYCLOAK_ISSUER`) при этом остаётся **публичным** и по умолчанию выводится из `KC_HOSTNAME` (см. §7 и ADR-0013).
@@ -347,6 +355,7 @@ docker image prune -f
 - [ ] Reverse-proxy (Caddy) выдаёт валидный HTTPS
 - [ ] Стек поднят: `docker compose ps` — все healthy
 - [ ] Keycloak realm/client настроены, `KEYCLOAK_CLIENT_SECRET` вписан
+- [ ] SMS.ru callcheck (ADR-0014): `SMSRU_API_ID` заполнен, `SMSRU_CALLCHECK_ENABLED=true`, публичный `https`-обработчик `/api/v1/callbacks/smsru` зарегистрирован у провайдера
 - [ ] `KC_HOSTNAME` = публичный домен `auth.*`, issuer согласован (ADR-0013); service account имеет `manage-users`/`view-users`/`view-events`
 - [ ] SMTP для писем и User events включены (ADR-0012)
 - [ ] `prisma migrate deploy` выполнен

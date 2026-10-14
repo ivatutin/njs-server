@@ -216,34 +216,54 @@ F2 sign-in на существующий номер   → 200 + строка dev
 ## 🟡 Phase 2.5 — Обратный звонок (SMS.ru callcheck)
 
 Второй канал подтверждения телефона — по бизнес-требованию **основной**; SMS-код остаётся как fallback.
-Контракт — предложение v1.2 (`docs/contract-proposals/auth-v1.2-phone-call-verification.md`), решение — ADR-0014.
+Контракт — **v1.2 принят** (`docs/auth-v1-contract.md`, changelog 14.10.2026); история предложения и его рассмотрения — `docs/contract-proposals/auth-v1.2-phone-call-verification.md`. Решение — ADR-0014.
 
 Принцип: **вебхук только фиксирует `verified` и выдаёт `verificationToken`**, минт Keycloak-токенов остаётся
 в `sign-up/phone` / `sign-in/phone`. Верификация и выдача токенов друг от друга не зависят.
 
 **Эндпоинты (после принятия контракта v1.2):**
 
-- [ ] `POST /auth/phone/call` — public
+- [x] `POST /auth/phone/call` — public
   - body: `{ phone, purpose }` (тот же enum purpose, что у `otp/send`)
   - 200 → `{ challengeId, channel: 'phone', method: 'call', callTo, expiresAt /* +5 мин */, cooldownSeconds: 60, otpFallback: true }`
   - `409 ContactAlreadyExists` (только `purpose='sign-up'`) · `422 OtpRateLimited` + `details.retryAfter` · `503` при недоступности провайдера
   - **anti-enum:** `purpose='sign-in'` → всегда 200 (заявка создаётся и для незарегистрированного номера)
 
-- [ ] `GET /auth/phone/call/:challengeId` — public
-  - 200 → `{ status: 'pending' }` · 200 → `{ status: 'verified', verificationToken }`
-  - `422 CallChallengeExpired` (окно истекло / челлендж неизвестен или вытеснен новым стартом) · `422 CallChallengeFailed` + `details.reason`
+- [x] `GET /auth/phone/call/:challengeId` — public — **идемпотентный**, все состояния отдаются как 200 + `status`
+  - 200 → `{ status: 'pending' }` · `{ status: 'verified', verificationToken }` (повторный запрос возвращает **тот же** токен) · `{ status: 'expired' }` (окно истекло / вытеснен другим каналом / неизвестный `challengeId`) · `{ status: 'failed', reason }`
+  - кодов ошибок у эндпоинта нет — контракт v1.2 новых кодов не вводит (терминальное состояние = состояние ресурса, а не ошибка клиента)
 
 **Инфра:**
-- [ ] порт `PHONE_CALL_PROVIDER` (`start` / `status`) + адаптер `SmsRuCallcheckProvider`: `callcheck/add` и `callcheck/status`, `ip` = **IP пользователя** (`resolveClientIp`)
-- [ ] челлендж-стор: поля `method`, `providerCheckId`, `callTo`; индекс `otp:call:<check_id>` → `challengeId`; `otp:active:<sha256(target|purpose)>` вытесняет прошлый челлендж (**обязательно**: привязка звонка идёт по A-номеру, параллельные заявки на один номер недопустимы)
-- [ ] вебхук провайдера (публичный `https`, **вне фронтового контракта**): тело не доверяем → `callcheck/status` → атомарный переход в `verified` (`SET NX`) + одноразовая выдача `verificationToken`
-- [ ] polling-fallback: `GET`-эндпоинт сам опрашивает провайдера (троттлинг ≥5 с) — работает без публичного вебхука (dev/CI)
-- [ ] `SMSRU_API_ID` (+ `SMSRU_CALLCHECK_ENABLED`) в `env.validation.ts` / `.env.example`; в dev/CI — фейк-провайдер
-- [ ] маппинг кодов провайдера: `400 → pending`, `401 → verified`, `402 → expired`, `202 → failed`, `508 → OtpRateLimited`, `301/302 → 5xx + алерт` (провайдерский `401` = «номер подтверждён» — тест обязателен)
+- [x] порт `PHONE_CALL_PROVIDER` (`start` / `status`) + адаптер `SmsRuCallcheckProvider`: `callcheck/add` и `callcheck/status`, `ip` = **IP пользователя** (`resolveClientIp`)
+- [x] челлендж-стор: поля `method`, `providerCheckId`, `callTo`; индекс `otp:call:<check_id>` → `challengeId`; `otp:active:<sha256(target|purpose)>` вытесняет прошлый челлендж (**обязательно**: привязка звонка идёт по A-номеру, параллельные заявки на один номер недопустимы)
+- [x] вебхук провайдера (публичный `https`, **вне фронтового контракта**): тело не доверяем → `callcheck/status` → атомарный переход в `verified` (`SET NX`) + одноразовая выдача `verificationToken`
+- [x] polling-fallback: `GET`-эндпоинт сам опрашивает провайдера (троттлинг ≥5 с) — работает без публичного вебхука (dev/CI)
+- [x] кросс-канальное вытеснение: `POST /auth/otp/send` и `POST /auth/phone/call` делят один активный челлендж на `(phone, purpose)` (ключ `otp:active:<sha256(target|purpose)>`) — вытесненный отвечает `200 { status: 'expired' }`
+- [x] `SMSRU_API_ID` (+ `SMSRU_CALLCHECK_ENABLED`) в `env.validation.ts` / `.env.example`; в dev/CI — фейк-провайдер
+- [x] маппинг кодов провайдера: `400 → pending`, `401 → verified`, `402 → expired`, `202 → failed`, `508 → OtpRateLimited`, `301/302 → 5xx + алерт` (провайдерский `401` = «номер подтверждён» — тест обязателен)
 
 **Уточнить у SMS.ru (блокеры дизайна):** формат тела вебхука и наличие подписи, IP-адреса отправителя для allowlist, цена, лимиты (`508`), поведение при скрытом номере (CLIR), отмена заявки.
 
-**Коды:** `CallChallengeExpired`, `CallChallengeFailed` (аддитивно, контракт v1.2).
+**Коды:** новых нет — реестр не меняется (терминальные состояния — поле `status` при 200, контракт v1.2).
+
+**Реализовано (14.10.2026):** `src/modules/otp` — порт `PhoneCallProvider`, адаптеры `SmsRuCallcheckProvider` (prod) и `ConsolePhoneCallProvider` (dev, fail-closed в проде), сервис `PhoneCallRefresher`, use-cases `StartPhoneCall` / `GetPhoneCallStatus` / `RefreshPhoneCallStatus`, контроллеры `/auth/phone/call` и `/callbacks/smsru`, ключи `otp:call:<check_id>` и `otp:claim:<id>` (`SET NX` — токен выдаётся ровно один раз), env `SMSRU_*`, общий helper `resolveClientIp` в `shared`. Тесты: 36 suites / 205 passed — включая ловушку «провайдерский `401` = номер подтверждён» и идемпотентность повторного `GET`.
+
+**Осталось:** живой acceptance с реальным `api_id` (spike из ADR-0014) и уточнения у SMS.ru ниже. До этого боевой канал выключен (`SMSRU_CALLCHECK_ENABLED=false`) и работает dev-заглушка.
+
+**Acceptance Phase 2.5 — ✅ пройден на живом стеке с dev-провайдером (14.10.2026, `SMSRU_DEV_CONFIRM_AFTER_SECONDS=1`):**
+```
+A start (sign-in, неизвестный номер) → 200 { challengeId, channel 'phone', method 'call',
+                                            callTo '+7 (800) 000-00-00', cooldownSeconds 60, otpFallback true }
+B GET сразу после старта             → 200 { status: 'pending' }   (опрос провайдера троттлится 5 с)
+C GET через 6 с                      → 200 { status: 'verified', verificationToken: 'KXb78aTT…' }
+D повторный GET                      → 200, тот же verificationToken (идемпотентность)
+E неизвестный challengeId            → 200 { status: 'expired' }   (не 404/422 — требование контракта v1.2)
+F вебхук с реальным check_id         → 200 { ok: true }; лог: "callback applied: challenge=… status=verified", matched=1
+G вебхук с чужим check_id            → 200 { ok: true }; лог: "callback for unknown provider check_id (ignored)", matched=0
+H call-челлендж → otp/send на тот же номер → GET звонка: 200 { status: 'expired' } (кросс-канальное вытеснение)
+I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfter: 60 } — лимит общий для обоих каналов
+```
+Боевой провайдер не вызывался (dev-заглушка); маскирование PII в логах проверено: `[dev-call] purpose-phone=+7 (***) ***-00-96`.
 
 ---
 

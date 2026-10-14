@@ -139,7 +139,7 @@ src/
 │   │   └── interfaces/
 │   ├── auth/        ← всё про Auth (Keycloak, guards, token blacklist)
 │   │   └── ...
-│   └── otp/         ← всё про OTP-челленджи (Phase 0 auth-suite)
+│   └── otp/         ← OTP-челленджи (Phase 0) + звонковый канал (Phase 2.5)
 │       └── ...
 └── shared/          ← technical kernel, общее для всех модулей
 ```
@@ -229,23 +229,27 @@ project/
 │   │   │   │   └── http/             # controller, guards, DTOs, mapper
 │   │   │   └── auth.module.ts
 │   │   │
-│   │   └── otp/                      # Phase 0 auth-suite: OTP-челленджи
+│   │   └── otp/                      # Phase 0: OTP-код; Phase 2.5: обратный звонок (SMS.ru callcheck)
 │   │       ├── domain/
-│   │       │   ├── entities/otp-challenge.entity.ts  # TTL 5 мин + лимит попыток
-│   │       │   ├── otp-policy.ts     # цифры контракта: 6 цифр, TTL, лимиты
+│   │       │   ├── entities/otp-challenge.entity.ts  # TTL, попытки (OTP) и звонковый челлендж (method='call')
+│   │       │   ├── otp-policy.ts     # цифры контракта: 6 цифр, TTL, лимиты, окно звонка 5 мин
 │   │       │   ├── otp-code.ts, target-mask.ts
 │   │       │   ├── errors/           # OtpInvalid, OtpExpired, OtpTooManyAttempts, OtpRateLimited
-│   │       │   └── ports/            # OtpChallengeStore, OtpHasher, OtpRateLimiter, SmsSender, VerificationTokenIssuer
+│   │       │   └── ports/            # OtpChallengeStore, OtpHasher, OtpRateLimiter, SmsSender,
+│   │       │                         #   VerificationTokenIssuer, PhoneCallProvider
 │   │       ├── application/
-│   │       │   └── use-cases/        # SendOtp, VerifyOtp
+│   │       │   ├── services/         # PhoneCallRefresher (опрос провайдера + выдача токена)
+│   │       │   └── use-cases/        # SendOtp, VerifyOtp, StartPhoneCall, GetPhoneCallStatus,
+│   │       │                         #   RefreshPhoneCallStatus (вебхук)
 │   │       ├── infrastructure/
-│   │       │   ├── persistence/      # RedisOtpChallengeStore
+│   │       │   ├── persistence/      # RedisOtpChallengeStore (challenge/active/call/claim)
 │   │       │   ├── hashing/          # Argon2OtpHasher (argon2id)
 │   │       │   ├── rate-limit/       # RedisOtpRateLimiter (cooldown + 2 счётчика)
 │   │       │   ├── tokens/           # RedisVerificationTokenIssuer (GETDEL, 10 мин)
-│   │       │   └── sms/              # ConsoleSmsSender (dev)
+│   │       │   ├── sms/              # ConsoleSmsSender (dev)
+│   │       │   └── call/             # SmsRuCallcheckProvider (prod) / ConsolePhoneCallProvider (dev)
 │   │       ├── interfaces/
-│   │       │   └── http/             # controller (/auth/otp), DTOs, mapper
+│   │       │   └── http/             # controllers (/auth/otp, /auth/phone/call, /callbacks/smsru), DTOs, mappers
 │   │       └── otp.module.ts
 │   │
 │   └── generated/
