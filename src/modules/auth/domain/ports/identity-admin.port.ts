@@ -40,6 +40,12 @@ export interface IdentityAdminPort {
   /** Просит Keycloak отправить письмо-подтверждение (realm SMTP). */
   sendVerifyEmail(keycloakId: string): Promise<void>;
 
+  /**
+   * Просит Keycloak отправить письмо с required action `UPDATE_PASSWORD`
+   * (ссылка «сменить пароль» с ограниченным временем жизни).
+   */
+  sendPasswordResetEmail(keycloakId: string): Promise<void>;
+
   /** События `VERIFY_EMAIL` за последние `sinceSeconds` секунд. */
   findEmailVerificationEvents(params: { sinceSeconds: number }): Promise<EmailVerificationEvent[]>;
 }

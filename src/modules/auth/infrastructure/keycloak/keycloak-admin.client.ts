@@ -100,6 +100,24 @@ export class KeycloakAdminClient {
     return response.data;
   }
 
+  /**
+   * Отправляет письмо с набором required actions (например, `UPDATE_PASSWORD`
+   * для «забыл пароль»). `client_id` не передаём — по той же причине, что и в
+   * `sendVerifyEmail` (у бэкенд-клиента нет браузерного flow).
+   */
+  async executeActionsEmail(
+    userId: string,
+    actions: string[],
+    lifespanSeconds: number,
+  ): Promise<void> {
+    const params = new URLSearchParams({ lifespan: String(lifespanSeconds) });
+    await axios.put(`${this.adminUrl}/users/${userId}/execute-actions-email`, actions, {
+      ...(await this.auth()),
+      headers: { ...(await this.auth()).headers, 'Content-Type': 'application/json' },
+      params,
+    });
+  }
+
   private async auth(): Promise<{ headers: Record<string, string> }> {
     return { headers: { Authorization: `Bearer ${await this.accessToken()}` } };
   }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { IDENTITY_PROVIDER } from './domain/ports/identity-provider.port';
 import { IDENTITY_ADMIN } from './domain/ports/identity-admin.port';
+import { PASSWORD_RESET_RATE_LIMITER } from './domain/ports/password-reset-rate-limiter.port';
 import { TOKEN_STORE } from './domain/ports/token-store.port';
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
 import { KeycloakJwtVerifier } from './infrastructure/keycloak/keycloak-jwt.verifier';
@@ -16,6 +17,8 @@ import { SignOutUseCase } from './application/use-cases/sign-out/sign-out.use-ca
 import { ValidateTokenUseCase } from './application/use-cases/validate-token/validate-token.use-case';
 import { SignUpEmailUseCase } from './application/use-cases/sign-up-email/sign-up-email.use-case';
 import { ResendVerifyEmailUseCase } from './application/use-cases/resend-verify-email/resend-verify-email.use-case';
+import { ForgotPasswordUseCase } from './application/use-cases/forgot-password/forgot-password.use-case';
+import { RedisPasswordResetRateLimiter } from './infrastructure/rate-limit/redis-password-reset.rate-limiter';
 import { AuthController } from './interfaces/http/auth.controller';
 import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
 import { RolesGuard } from './interfaces/http/guards/roles.guard';
@@ -38,6 +41,10 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     ValidateTokenUseCase,
     SignUpEmailUseCase,
     ResendVerifyEmailUseCase,
+    ForgotPasswordUseCase,
+
+    // Инфраструктура
+    { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },
 
     // «Слушатель» событий Keycloak (поллинг Admin Events API → domain event)
     KeycloakEventListenerService,

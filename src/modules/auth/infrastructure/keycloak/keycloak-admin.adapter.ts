@@ -11,6 +11,8 @@ import { KeycloakAdminClient, KeycloakAdminUserRepresentation } from './keycloak
 
 const VERIFY_EMAIL_EVENT = 'VERIFY_EMAIL';
 const MAX_EVENTS_PER_POLL = 100;
+/** Ссылка «сменить пароль» живёт 1 час (чек-лист Phase 1.5). */
+const PASSWORD_RESET_LINK_TTL = 3600;
 
 /**
  * Keycloak-backed реализация `IdentityAdminPort`.
@@ -63,6 +65,10 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
 
   async sendVerifyEmail(keycloakId: string): Promise<void> {
     await this.client.sendVerifyEmail(keycloakId);
+  }
+
+  async sendPasswordResetEmail(keycloakId: string): Promise<void> {
+    await this.client.executeActionsEmail(keycloakId, ['UPDATE_PASSWORD'], PASSWORD_RESET_LINK_TTL);
   }
 
   async findEmailVerificationEvents(params: {
