@@ -205,7 +205,7 @@ F2 sign-in на существующий номер   → 200 + строка dev
   - lookup по attribute `phoneNumber` → нет → `401 InvalidCredentials` (**тот же ответ**, что при wrong OTP — anti-enum) → иначе выдача токенов тем же механизмом, что в sign-up
 
 **Инфра:**
-- [ ] механизм выдачи токенов выбран, оформлен ADR, нужные фичи Keycloak включены
+- [ ] механизм выдачи токенов выбран, оформлен ADR, нужные фичи Keycloak включены — **спайк пройден (14.10.2026): CIBA работает end-to-end (уведомление канала → callback → токены с реальной сессией), конфигурация runtime; см. `docs/research/token-minting.md`**
 - [ ] service account с `realm-management/manage-users` (создание и поиск пользователя)
 - [ ] lookup user по `phoneNumber` attribute (индекс в Postgres shadow)
 

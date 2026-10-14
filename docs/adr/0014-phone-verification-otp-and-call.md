@@ -150,5 +150,6 @@ Phase 2 (phone-регистрация и вход) требует доказат
 - `docs/auth-suite-backend-checklist.md` (Phase 0 / Phase 2 / Phase 2.5)
 - `docs/auth-v1-contract.md` (v1.2, 14.10.2026) — форма эндпоинтов и «новых кодов нет»
 - `docs/contract-proposals/auth-v1.2-phone-call-verification.md` — предложение по контракту
+- `docs/research/token-minting.md` — спайк: какие механизмы выдачи Keycloak-токенов реально работают на 26.8
 - ADR [0011](./0011-otp-storage-hashing-and-limits.md), ADR [0012](./0012-email-verification-signal.md)
 - SMS.ru: [callcheck](https://sms.ru/api/call), [callback_add](https://sms.ru/api/callback_add)
