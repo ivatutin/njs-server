@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@shared/interfaces/http/decorators/current-user.decorator';
+import { Roles } from '@shared/interfaces/http/decorators/roles.decorator';
 import { TokenClaims } from '@shared/domain/token-claims';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -33,6 +34,12 @@ import { SuspendUserUseCase } from '../../application/use-cases/suspend-user/sus
 import { ActivateUserUseCase } from '../../application/use-cases/activate-user/activate-user.use-case';
 import { DeleteUserUseCase } from '../../application/use-cases/delete-user/delete-user.use-case';
 
+/**
+ * Пользователи: self-service профиль + админские операции.
+ *
+ * RBAC (ADR-0020): роли ставятся **по методам**, а не на класс — иначе `GET /users/me`
+ * (профиль обычного пользователя) стал бы админским. Всё, что админское, требует роль `admin`.
+ */
 @ApiTags('Users')
 @ApiBearerAuth('bearer')
 @Controller('users')
@@ -51,6 +58,7 @@ export class UserController {
   ) {}
 
   @Post()
+  @Roles('admin')
   @HttpCode(201)
   @ApiOperation({
     summary: 'Create user',
@@ -95,6 +103,7 @@ export class UserController {
   }
 
   @Get(':id')
+  @Roles('admin')
   @ApiOperation({ summary: 'Get user by id' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -104,6 +113,7 @@ export class UserController {
   }
 
   @Patch(':id/profile')
+  @Roles('admin')
   @ApiOperation({ summary: 'Update first/last name' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
@@ -118,6 +128,7 @@ export class UserController {
   }
 
   @Patch(':id/contacts')
+  @Roles('admin')
   @ApiOperation({
     summary: 'Update email/phone',
     description:
@@ -138,6 +149,7 @@ export class UserController {
   }
 
   @Post(':id/email/verify')
+  @Roles('admin')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Verify user email',
@@ -156,6 +168,7 @@ export class UserController {
   }
 
   @Post(':id/phone/verify')
+  @Roles('admin')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Verify user phone',
@@ -174,6 +187,7 @@ export class UserController {
   }
 
   @Post(':id/suspend')
+  @Roles('admin')
   @HttpCode(200)
   @ApiOperation({ summary: 'Suspend user', description: 'Only active users can be suspended.' })
   @ApiResponse({ status: 200, type: UserResponseDto })
@@ -184,6 +198,7 @@ export class UserController {
   }
 
   @Post(':id/activate')
+  @Roles('admin')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Activate user',
@@ -197,6 +212,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete user' })
   @ApiResponse({ status: 204, description: 'No Content' })

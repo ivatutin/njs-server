@@ -311,6 +311,18 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
 
    Проверка: `POST /users/me/contact-change/request { "channel": "email", "newValue": "<свой ящик>" }` → письмо с кодом;
    при пустом `DASHAMAIL_API_KEY` в проде — `503`, контакт не изменён.
+12. **Роль `admin` (ADR-0020).** Админские операции (`POST /users`, `GET /users/:id`, `PATCH /users/:id/profile|contacts`,
+   `POST /users/:id/{email,phone}/verify`, `POST /users/:id/{suspend,activate}`, `DELETE /users/:id`) требуют
+   realm-роль **`admin`**; `GET /users/me` и `/users/me/*` доступны без ролей.
+   - Realm roles → **Create role** → `admin` (**роль реалма**, не client role);
+   - Users → `<оператор>` → Role mapping → Assign role → `admin`;
+   - проверка: в access-токене оператора `realm_access.roles` содержит `admin`, а админский запрос без роли отвечает
+     `403 Forbidden`;
+   - после выдачи роли нужен **новый токен** (вход или refresh) — роль берётся из JWT;
+   - снятие роли действует **после истечения access-токена** (300 с); нужно немедленно — отозвать доступ
+     (`RevokeUserAccessUseCase`, ADR-0018) и увести на повторный вход.
+   Роль `manager` зарезервирована, в MVP не используется; встроенные роли (`offline_access`, `uma_authorization`,
+   `default-roles-<realm>`) отфильтровываются и в нашей БД не хранятся.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

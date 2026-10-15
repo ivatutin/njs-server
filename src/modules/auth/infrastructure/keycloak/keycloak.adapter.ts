@@ -9,6 +9,7 @@ import { InvalidCredentialsError } from '../../domain/errors/invalid-credentials
 import { InvalidTokenError } from '../../domain/errors/invalid-token.error';
 import { KeycloakHttpClient } from './keycloak-http.client';
 import { KeycloakJwtVerifier } from './keycloak-jwt.verifier';
+import { filterBuiltinRealmRoles } from './realm-roles';
 
 interface KeycloakJwtPayload {
   sub?: string;
@@ -93,7 +94,9 @@ export class KeycloakAdapter implements IdentityProviderPort {
         sub: payload.sub,
         // Phone-пользователь (Phase 2) существует без email — это не ошибка.
         email: payload.email ?? null,
-        roles: payload.realm_access?.roles ?? [],
+        // Встроенные роли Keycloak (offline_access, uma_authorization, default-roles-<realm>)
+        // в claims не пускаем: это не наши роли (ADR-0020).
+        roles: filterBuiltinRealmRoles(payload.realm_access?.roles ?? []),
         issuedAt: payload.iat,
       };
     } catch (err) {
