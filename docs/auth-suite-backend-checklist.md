@@ -337,7 +337,12 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 - [ ] `POST /users/me/contact-change/request` — protected + `X-Reauth-Token` — `{ channel: 'email'|'phone', newValue }` → `201 { changeToken, requiresOldChallenge, oldChallengeId?, newChallengeId }`
 - [ ] `POST /users/me/contact-change/verify` — protected — `{ changeToken, oldCode?, newCode }` → `200 UserDto`
 - [ ] `POST /users/me/contact-change/cancel` — protected — `{ changeToken }` → `204`
-- [ ] `POST /users/me/password` — protected + `X-Reauth-Token` — `{ newPassword }` → `204`
+- [x] `POST /users/me/password` — protected + `X-Reauth-Token` → `{ newPassword }` → `204`
+  - требование «пароль введён недавно» проверяет `ReauthTokenGuard`: токен из `POST /auth/reauth` должен принадлежать
+    **тому же** пользователю (`sub` access-токена) и расходуется на входе (одноразовость) → иначе `401 ReauthTokenInvalid`
+    (нет заголовка / чужой токен) или `422 ReauthTokenExpired` (истёк или уже использован)
+  - политику пароля проверяет Keycloak → `422 PasswordPolicyViolation`
+  - passwordless-пользователям этот путь недоступен: им нужен `set-password` (им нечего «вводить заново»)
 - [x] `POST /users/me/set-password` — protected — `{ verificationToken /* purpose='set-password' */, newPassword }` → `204`
   - токен должен быть с `purpose='set-password'` **и принадлежать контакту вызывающего** (сверяем `target` токена с
     телефоном/email пользователя из Keycloak): иначе владелец валидного токена на свой номер задал бы пароль чужому аккаунту
@@ -372,6 +377,17 @@ password-grant со старым паролем                  → 400 invalid
 ```
 Источник телефона для сверки — атрибут Keycloak `phoneNumber`; для этого в реалме включён
 `unmanagedAttributePolicy = ENABLED` (иначе Keycloak отбрасывает нестандартные атрибуты, см. находку выше).
+
+**Acceptance Phase 4 (password / X-Reauth-Token) — ✅ пройден на живом стеке (15.10.2026):**
+```
+sign-in/phone → access token
+POST /auth/reauth { password }                    → 200 reauthToken
+POST /users/me/password без X-Reauth-Token        → 401 ReauthTokenInvalid ("Missing X-Reauth-Token header")
+POST /users/me/password с X-Reauth-Token          → 204
+повтор того же reauth-токена                      → 422 ReauthTokenExpired  ← одноразовость
+password-grant с новым паролем                    → 200 { expires_in: 300 }
+password-grant со старым паролем                  → 400 invalid_grant
+```
 
 Advanced-операции (сессии, отвязка провайдеров, удаление аккаунта, MFA) — нативный Keycloak Account Console, не наши эндпоинты.
 

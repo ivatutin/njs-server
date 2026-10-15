@@ -18,6 +18,7 @@ import { HandleCibaChannelRequestUseCase } from './application/use-cases/handle-
 import { CibaChannelController } from './interfaces/http/ciba-channel.controller';
 import { AccountSecurityController } from './interfaces/http/account-security.controller';
 import { SetPasswordUseCase } from './application/use-cases/set-password/set-password.use-case';
+import { ChangePasswordUseCase } from './application/use-cases/change-password/change-password.use-case';
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
 import { KeycloakJwtVerifier } from './infrastructure/keycloak/keycloak-jwt.verifier';
 import { KeycloakAdapter } from './infrastructure/keycloak/keycloak.adapter';
@@ -35,6 +36,7 @@ import { ForgotPasswordUseCase } from './application/use-cases/forgot-password/f
 import { RedisPasswordResetRateLimiter } from './infrastructure/rate-limit/redis-password-reset.rate-limiter';
 import { AuthController } from './interfaces/http/auth.controller';
 import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
+import { ReauthTokenGuard } from './interfaces/http/guards/reauth-token.guard';
 import { RolesGuard } from './interfaces/http/guards/roles.guard';
 
 @Module({
@@ -53,6 +55,7 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     UserTokenMintService,
     // Reauth-токены для опасных операций (Phase 4)
     { provide: REAUTH_TOKEN_STORE, useClass: RedisReauthTokenStore },
+    ReauthTokenGuard,
 
     // Use cases
     SignInUseCase,
@@ -67,6 +70,7 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     HandleCibaChannelRequestUseCase,
     RequestReauthUseCase,
     SetPasswordUseCase,
+    ChangePasswordUseCase,
 
     // Инфраструктура
     { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },

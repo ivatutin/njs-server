@@ -181,6 +181,9 @@ describe('DomainError.code', () => {
         'OtpRateLimited',
         'OtpTooManyAttempts',
         'PasswordPolicyViolation',
+        // Phase 4 (ADR-0006-стиль гардрейла): X-Reauth-Token на опасных операциях
+        'ReauthTokenExpired',
+        'ReauthTokenInvalid',
         'TermsNotAccepted',
         'UserNotFound',
         // Phase 2 (ADR-0015): предъявление verificationToken в sign-up/sign-in по phone
