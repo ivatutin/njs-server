@@ -36,7 +36,8 @@ function subjectFor(purpose: OtpPurpose): string {
  */
 function buildBodies(purpose: OtpPurpose, code: string): { message: string; plain_text: string } {
   const intro = subjectFor(purpose);
-  const tail = 'Код действует 5 минут. Если вы не запрашивали смену — просто проигнорируйте письмо.';
+  const tail =
+    'Код действует 5 минут. Если вы не запрашивали смену — просто проигнорируйте письмо.';
 
   return {
     message: `<p>${intro}</p><p>Ваш код: <b>${code}</b></p><p>${tail}</p>`,
@@ -155,9 +156,7 @@ export class DashaMailEmailSender implements EmailSender {
           return { accepted: false, reason: 'provider-error' };
         }
 
-        this.logger.warn(
-          `dashamail send attempt ${attempt} failed (retrying): ${describe(cause)}`,
-        );
+        this.logger.warn(`dashamail send attempt ${attempt} failed (retrying): ${describe(cause)}`);
         await new Promise((resolve) =>
           setTimeout(resolve, DashaMailEmailSender.RETRY_DELAY_MS * attempt),
         );

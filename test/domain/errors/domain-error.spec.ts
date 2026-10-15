@@ -172,7 +172,10 @@ describe('DomainError.code', () => {
         .map(([, ErrorClass]) => new ErrorClass('boom').code);
 
       expect([...new Set(codes)].sort()).toEqual([
+        // Phase 4 (ADR-0017 §5): смена контакта — changeToken и одна активная смена на пользователя
+        'ChangeTokenExpired',
         'ContactAlreadyExists',
+        'ContactChangeAlreadyPending',
         'InvalidContacts',
         'InvalidCredentials',
         'InvalidToken',

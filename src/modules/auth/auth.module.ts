@@ -8,8 +8,10 @@ import { USER_TOKEN_ISSUER } from './domain/ports/user-token-issuer.port';
 import { PENDING_MINT_STORE } from './domain/ports/pending-mint-store.port';
 import { REAUTH_TOKEN_STORE } from './domain/ports/reauth-token-store.port';
 import { REAUTH_ATTEMPT_LIMITER } from './domain/ports/reauth-attempt-limiter.port';
+import { CHANGE_TOKEN_STORE } from './domain/ports/change-token-store.port';
 import { RedisReauthTokenStore } from './infrastructure/redis/redis-reauth-token.store';
 import { RedisReauthAttemptLimiter } from './infrastructure/rate-limit/redis-reauth-attempt.limiter';
+import { RedisChangeTokenStore } from './infrastructure/redis/redis-change-token.store';
 import { RequestReauthUseCase } from './application/use-cases/request-reauth/request-reauth.use-case';
 import { UserTokenMintService } from './application/services/user-token-mint.service';
 import { KeycloakCibaAdapter } from './infrastructure/keycloak/keycloak-ciba.adapter';
@@ -60,6 +62,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     { provide: REAUTH_TOKEN_STORE, useClass: RedisReauthTokenStore },
     // Brute-force защита reauth: 5 неудач / 15 минут на пользователя (ADR-0018, решение координатора)
     { provide: REAUTH_ATTEMPT_LIMITER, useClass: RedisReauthAttemptLimiter },
+    // changeToken смены контакта: хеш, TTL 10 минут, слот активной смены, статусы (ADR-0017 §5)
+    { provide: CHANGE_TOKEN_STORE, useClass: RedisChangeTokenStore },
     ReauthTokenGuard,
 
     // Use cases

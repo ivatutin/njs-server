@@ -1,9 +1,6 @@
 import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import {
-  OtpChallengeStart,
-  OtpChallenges,
-} from '@shared/application/otp-challenges.interface';
+import { OtpChallengeStart, OtpChallenges } from '@shared/application/otp-challenges.interface';
 import { OtpChallenge } from '../../domain/entities/otp-challenge.entity';
 import { OtpExpiredError } from '../../domain/errors/otp-expired.error';
 import { OtpInvalidError } from '../../domain/errors/otp-invalid.error';

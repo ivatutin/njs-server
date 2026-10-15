@@ -1,9 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { EVENT_BUS, EventBus } from '@shared/application/event-bus.interface';
-import {
-  UserContacts,
-  UserContactsSnapshot,
-} from '@shared/application/user-contacts.interface';
+import { UserContacts, UserContactsSnapshot } from '@shared/application/user-contacts.interface';
 import { PrismaService } from '@shared/infrastructure/prisma/prisma.service';
 import { User } from '../../domain/entities/user.entity';
 import { Email } from '../../domain/value-objects/email.vo';

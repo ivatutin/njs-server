@@ -19,7 +19,6 @@ export const DEFAULT_ROLES_PREFIX = 'default-roles-';
  */
 export function filterBuiltinRealmRoles(roles: readonly string[]): string[] {
   return roles.filter(
-    (role) =>
-      !BUILTIN_REALM_ROLES.includes(role) && !role.startsWith(DEFAULT_ROLES_PREFIX),
+    (role) => !BUILTIN_REALM_ROLES.includes(role) && !role.startsWith(DEFAULT_ROLES_PREFIX),
   );
 }
