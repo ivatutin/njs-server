@@ -4,7 +4,7 @@ import { UseCase } from '@shared/application/use-case.interface';
 import { CONTACT_LOOKUP, ContactLookup } from '@shared/application/contact-lookup.interface';
 import { ContactAlreadyExistsError } from '@shared/domain/errors/contact-already-exists.error';
 import { OtpChallenge } from '../../../domain/entities/otp-challenge.entity';
-import { OTP_COOLDOWN_SECONDS, OtpChannel } from '../../../domain/otp-policy';
+import { OTP_COOLDOWN_SECONDS } from '../../../domain/otp-policy';
 import { OtpRateLimitedError } from '../../../domain/errors/otp-rate-limited.error';
 import {
   OTP_CHALLENGE_STORE,
@@ -20,7 +20,8 @@ import { StartPhoneCallCommand } from './start-phone-call.command';
 /** Ответ `POST /auth/phone/call` (контракт v1.2). */
 export interface PhoneCallChallengeResult {
   challengeId: string;
-  channel: OtpChannel;
+  /** Звонковый канал — телефонный по определению (ADR-0014). */
+  channel: 'phone';
   method: 'call';
   callTo: string;
   expiresAt: string;
@@ -79,7 +80,7 @@ export class StartPhoneCallUseCase implements UseCase<
 
     return {
       challengeId: challenge.id,
-      channel: challenge.channel,
+      channel: 'phone',
       method: 'call',
       callTo: started.callTo,
       expiresAt: challenge.expiresAt.toISOString(),

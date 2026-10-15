@@ -1,7 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VERIFICATION_TOKEN_CONSUMER } from '@shared/application/verification-token-consumer.interface';
+import { OTP_CHALLENGES } from '@shared/application/otp-challenges.interface';
 import { PhoneCallRefresher } from './application/services/phone-call-refresher.service';
+import { OtpChallengesAdapter } from './application/services/otp-challenges.adapter';
 import { GetPhoneCallStatusUseCase } from './application/use-cases/get-phone-call-status/get-phone-call-status.use-case';
 import { RefreshPhoneCallStatusUseCase } from './application/use-cases/refresh-phone-call-status/refresh-phone-call-status.use-case';
 import { SendOtpUseCase } from './application/use-cases/send-otp/send-otp.use-case';
@@ -59,6 +61,9 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
     { provide: VERIFICATION_TOKEN_ISSUER, useClass: RedisVerificationTokenIssuer },
     // Shared-порт для других контекстов: предъявить verificationToken (Phase 2/4)
     { provide: VERIFICATION_TOKEN_CONSUMER, useClass: OtpVerificationTokenConsumer },
+    // Shared-порт для внутренних сценариев (смена контакта): старт челленджа + проверка по (target, purpose)
+    OtpChallengesAdapter,
+    { provide: OTP_CHALLENGES, useExisting: OtpChallengesAdapter },
     // DEV: код печатается в лог; в проде — Twilio/SMS.ru тем же токеном
     { provide: SMS_SENDER, useClass: ConsoleSmsSender },
     // Звонковый канал: боевой SMS.ru callcheck либо dev-заглушка (fail-closed в проде)
@@ -86,6 +91,6 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
       ): EmailSender => (config.get<string>('dashamail.apiKey') ? dashamail : dev),
     },
   ],
-  exports: [VERIFICATION_TOKEN_CONSUMER],
+  exports: [VERIFICATION_TOKEN_CONSUMER, OTP_CHALLENGES],
 })
 export class OtpModule {}

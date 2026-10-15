@@ -4,7 +4,7 @@ import { UseCase } from '@shared/application/use-case.interface';
 import { CONTACT_LOOKUP, ContactLookup } from '@shared/application/contact-lookup.interface';
 import { OtpChallenge } from '../../../domain/entities/otp-challenge.entity';
 import { generateOtpCode } from '../../../domain/otp-code';
-import { OTP_CODE_LENGTH, OTP_COOLDOWN_SECONDS, OtpChannel } from '../../../domain/otp-policy';
+import { OTP_CODE_LENGTH, OTP_COOLDOWN_SECONDS } from '../../../domain/otp-policy';
 import { maskPhone } from '../../../domain/target-mask';
 import { ContactAlreadyExistsError } from '@shared/domain/errors/contact-already-exists.error';
 import { OtpRateLimitedError } from '../../../domain/errors/otp-rate-limited.error';
@@ -20,7 +20,8 @@ import { SendOtpCommand } from './send-otp.command';
 /** Ответ `POST /auth/otp/send` (контракт v1.0). Target — уже замаскированный. */
 export interface OtpChallengeResult {
   challengeId: string;
-  channel: OtpChannel;
+  /** Публичный флоу только телефонный (DTO валидирует канал) — email живёт в смене контакта. */
+  channel: 'phone';
   target: string;
   expiresAt: string;
   cooldownSeconds: number;
@@ -70,7 +71,7 @@ export class SendOtpUseCase implements UseCase<SendOtpCommand, OtpChallengeResul
 
     return {
       challengeId: challenge.id,
-      channel: challenge.channel,
+      channel: 'phone',
       target: maskPhone(challenge.target),
       expiresAt: challenge.expiresAt.toISOString(),
       cooldownSeconds: OTP_COOLDOWN_SECONDS,
