@@ -1,23 +1,12 @@
-/**
- * Пользователь в ответе регистрации — форма совпадает с `UserDto` контракта
- * (и с `UserResponseDto` user-модуля); `keycloakId` наружу не отдаём.
- */
-export class SignUpUserDto {
-  id: string;
-  email: string | null;
-  phone: string | null;
-  emailVerified: boolean;
-  phoneVerified: boolean;
-  firstName: string | null;
-  lastName: string | null;
-  roles: string[];
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { UserDto } from './user.dto';
 
+/**
+ * Пользователь в ответе регистрации — та же форма, что `UserDto` контракта
+ * (класс живёт в `user.dto.ts`, здесь — обратная совместимость имени).
+ */
+export { UserDto as SignUpUserDto } from './user.dto';
 /** Ответ `POST /auth/sign-up/email` (контракт v1.0): 201. */
 export class SignUpEmailResponseDto {
-  user: SignUpUserDto;
+  user: UserDto;
   verifyEmailSent: boolean;
 }
