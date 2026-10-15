@@ -168,6 +168,17 @@ describe('RequestContactChangeUseCase (ADR-0017, шаг 1)', () => {
     ).rejects.toThrow(UserNotFoundError);
   });
 
+  it('активная смена уже есть — 422 ContactChangeAlreadyPending до отправки кодов', async () => {
+    changes.hasActive.mockResolvedValue(true);
+
+    await expect(
+      useCase.execute(new RequestContactChangeCommand(KC_ID, 'email', 'new@example.com')),
+    ).rejects.toThrow(ContactChangeAlreadyPendingError);
+
+    expect(challenges.start).not.toHaveBeenCalled();
+    expect(changes.consumeUserQuota).not.toHaveBeenCalled();
+  });
+
   it('активная смена уже есть — пробрасывает ContactChangeAlreadyPending', async () => {
     changes.create.mockRejectedValue(new ContactChangeAlreadyPendingError());
 

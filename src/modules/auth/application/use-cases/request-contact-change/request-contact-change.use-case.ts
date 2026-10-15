@@ -12,6 +12,7 @@ import {
 import { ContactAlreadyExistsError } from '@shared/domain/errors/contact-already-exists.error';
 import { OtpRateLimitedError } from '@shared/domain/errors/otp-rate-limited.error';
 import { UserNotFoundError } from '@shared/domain/errors/user-not-found.error';
+import { ContactChangeAlreadyPendingError } from '../../../domain/errors/contact-change-already-pending.error';
 import {
   CHANGE_TOKEN_STORE,
   ChangeTokenStore,
@@ -57,6 +58,12 @@ export class RequestContactChangeUseCase implements UseCase<
     if (current === target) throw new ContactAlreadyExistsError();
     if (await this.contacts.isContactTaken({ [cmd.channel]: target })) {
       throw new ContactAlreadyExistsError();
+    }
+
+    // Одна активная смена: проверяем **до** отправки кодов. Иначе лимиты OTP срабатывают раньше
+    // и пользователь вместо «смена уже идёт → cancel» получает OtpRateLimited (нашлось на приёмке).
+    if (await this.changes.hasActive(cmd.keycloakId)) {
+      throw new ContactChangeAlreadyPendingError();
     }
 
     // Личный лимит: у каждого нового контакта своей истории лимитов нет, поэтому перебор
