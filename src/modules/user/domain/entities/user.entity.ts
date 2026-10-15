@@ -243,6 +243,70 @@ export class User extends AggregateRoot<UserId> {
   }
 
   /**
+   * Санкционированная смена контакта (ADR-0017, ред. 2): **единственный** путь, которым
+   * можно заменить подтверждённый контакт — вызывается flow'ом `contact-change`
+   * (`request` → `verify`) только после проверки кодов на новом (и, когда требуется,
+   * на старом) контакте. Новый контакт считается подтверждённым сразу: владение
+   * доказано кодами.
+   *
+   * Заменяется ровно один канал — `email` или `phone`; второй контакт и его
+   * подтверждение не трогаются. Идемпотентно по конечному состоянию: повторный вызов
+   * с тем же значением не порождает изменений и событий (нужно для ретраев `verify`).
+   */
+  applyVerifiedContactChange(data: { email?: string | null; phone?: string | null }): void {
+    const newEmailValue = data.email ?? null;
+    const newPhoneValue = data.phone ?? null;
+
+    if ((newEmailValue === null) === (newPhoneValue === null)) {
+      throw new InvalidContactsError('Change must provide exactly one contact: email or phone');
+    }
+
+    const now = new Date();
+    const changes: string[] = [];
+
+    if (newEmailValue !== null) {
+      const newEmail = Email.create(newEmailValue);
+      const emailChanged = this._email?.getValue() !== newEmail.getValue();
+
+      if (emailChanged) {
+        this._email = newEmail;
+        changes.push('email');
+      }
+
+      // Новый контакт подтверждён **сейчас**: старая метка относилась к прежнему значению.
+      if (emailChanged || this._emailVerifiedAt === null) {
+        this._emailVerifiedAt = now;
+        this.addDomainEvent(
+          new EmailVerifiedEvent({ userId: this.id.toString(), email: newEmail.toString() }),
+        );
+      }
+    } else {
+      const newPhone = Phone.create(newPhoneValue);
+      const phoneValue = newPhone.getValue();
+      const phoneChanged = !this._phone.equals(newPhone);
+
+      if (phoneChanged) {
+        this._phone = newPhone;
+        changes.push('phone');
+      }
+
+      if ((phoneChanged || this._phoneVerifiedAt === null) && phoneValue !== null) {
+        this._phoneVerifiedAt = now;
+        this.addDomainEvent(
+          new PhoneVerifiedEvent({ userId: this.id.toString(), phone: phoneValue }),
+        );
+      }
+    }
+
+    if (changes.length > 0) {
+      this._updatedAt = now;
+      this.addDomainEvent(new UserUpdatedEvent({ userId: this.id.toString(), changes }));
+    }
+
+    this.activateIfPending();
+  }
+
+  /**
    * Удаление email. Запрещено если:
    * - email уже null
    * - phone не задан (нарушит инвариант "хотя бы один контакт")
