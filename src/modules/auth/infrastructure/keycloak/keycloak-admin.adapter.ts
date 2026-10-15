@@ -117,6 +117,11 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     return this.toUser(users[0]);
   }
 
+  async findById(keycloakId: string): Promise<IdentityAdminUser | null> {
+    const user = await this.client.findUserById(keycloakId);
+    return user ? this.toUser(user) : null;
+  }
+
   async sendVerifyEmail(keycloakId: string): Promise<void> {
     await this.client.sendVerifyEmail(keycloakId);
   }
@@ -154,6 +159,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
   private toUser(user: KeycloakAdminUserRepresentation): IdentityAdminUser {
     return {
       keycloakId: user.id,
+      username: user.username ?? null,
       email: user.email ?? null,
       emailVerified: user.emailVerified === true,
       firstName: user.firstName ?? null,

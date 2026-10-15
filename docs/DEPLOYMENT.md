@@ -276,6 +276,11 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    - Отдельно решить судьбу шага **Review Profile** в flow `first broker login`: в стоковом виде он спрашивает профиль
      на каждом первом brokered-входе. Выключить (импорт молча) или оставить как UX — вопрос продукта (№7 в
      `docs/contract-proposals/auth-v1.3-social.md`).
+7. В **Realm settings → User profile** снять `required` у атрибута **`email`** (у `firstName`/`lastName` оставить).
+   Иначе у phone-пользователя — а у него email нет по дизайну (ADR-0015) — **любой** password-grant падает с
+   `invalid_grant / Account is not fully set up`: недоступны `POST /auth/reauth`, смена пароля и обычный вход по паролю.
+   Проверка: `POST /realms/<realm>/protocol/openid-connect/token` с `grant_type=password` и логином такого
+   пользователя должен отдавать токены, а не `invalid_grant`.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

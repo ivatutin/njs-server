@@ -23,6 +23,7 @@ describe('ResendVerifyEmailUseCase', () => {
       findEmailVerificationEvents: jest.fn(),
       createPhoneUser: jest.fn(),
       findByUsername: jest.fn(),
+      findById: jest.fn(),
     };
     useCase = new ResendVerifyEmailUseCase(identityAdmin);
   });

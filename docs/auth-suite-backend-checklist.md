@@ -324,7 +324,16 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 Требует Phase 0 (OTP) + reauth-инфру.
 
-- [ ] `POST /auth/reauth` — protected — `{ password }` → `{ reauthToken, expiresAt }` (one-shot, ~5 мин, в Redis)
+- [x] `POST /auth/reauth` — protected — `{ password }` → `{ reauthToken, expiresAt }` (one-shot, ~5 мин, в Redis)
+  - пароль проверяем password-grant'ом у Keycloak, а созданную им сессию **сразу гасим** (reauth — не вход)
+  - `username` берём из админ-API (`findById`): у phone-пользователя в токене нет `email`, а логин у него — телефон
+  - неверный пароль / пользователя нет в Keycloak → `401 InvalidCredentials`; новых кодов не потребовалось
+  - храним **хеш** токена (`auth:reauth:<sha256>`) и привязку к `keycloakId`: украденный дамп Redis не даёт предъявить токен,
+    а предъявить чужой токен нельзя
+  - **находка + фикс:** в user-profile реалма `email` был `required` для роли `user`, из-за чего у phone-пользователя
+    (email у него нет по дизайну) падал **любой** password-grant — `Account is not fully set up`. Требование снято (dev),
+    для прода это обязательный шаг → DEPLOYMENT §7
+  - не сделано (отдельная задача до прода): rate-limit на попытки reauth — на реалме стоит включить brute-force detection
 - [ ] `POST /users/me/contact-change/request` — protected + `X-Reauth-Token` — `{ channel: 'email'|'phone', newValue }` → `201 { changeToken, requiresOldChallenge, oldChallengeId?, newChallengeId }`
 - [ ] `POST /users/me/contact-change/verify` — protected — `{ changeToken, oldCode?, newCode }` → `200 UserDto`
 - [ ] `POST /users/me/contact-change/cancel` — protected — `{ changeToken }` → `204`
@@ -332,6 +341,17 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 - [ ] `POST /users/me/set-password` — protected — `{ verificationToken /* purpose='set-password' */, newPassword }` → `204`
 
 **Коды:** `ReauthTokenInvalid`, `ReauthTokenExpired`, `ChangeTokenExpired`, `ContactAlreadyExists`, `ContactChangeAlreadyPending`, `PasswordPolicyViolation`, `OtpInvalid`, `OtpExpired`.
+
+**Acceptance Phase 4 (reauth) — ✅ пройден на живом стеке (15.10.2026):**
+```
+sign-in/phone (+79990000110)         → access token
+POST /auth/reauth { password }       → 200 { reauthToken (43 симв.), expiresAt: +5 мин }
+POST /auth/reauth { wrong password } → 401 InvalidCredentials
+POST /auth/reauth без Authorization  → 401 Unauthorized
+Redis: auth:reauth:<sha256>          ← хранится хеш, не сам токен
+```
+Перед этим пришлось снять `required` у `email` в user-profile реалма (иначе password-grant для phone-пользователя
+падает с `Account is not fully set up`) — в проде это шаг настройки, а не код.
 
 Advanced-операции (сессии, отвязка провайдеров, удаление аккаунта, MFA) — нативный Keycloak Account Console, не наши эндпоинты.
 

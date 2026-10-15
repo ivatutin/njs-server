@@ -6,6 +6,9 @@ import { PASSWORD_RESET_RATE_LIMITER } from './domain/ports/password-reset-rate-
 import { TOKEN_STORE } from './domain/ports/token-store.port';
 import { USER_TOKEN_ISSUER } from './domain/ports/user-token-issuer.port';
 import { PENDING_MINT_STORE } from './domain/ports/pending-mint-store.port';
+import { REAUTH_TOKEN_STORE } from './domain/ports/reauth-token-store.port';
+import { RedisReauthTokenStore } from './infrastructure/redis/redis-reauth-token.store';
+import { RequestReauthUseCase } from './application/use-cases/request-reauth/request-reauth.use-case';
 import { UserTokenMintService } from './application/services/user-token-mint.service';
 import { KeycloakCibaAdapter } from './infrastructure/keycloak/keycloak-ciba.adapter';
 import { RedisPendingMintStore } from './infrastructure/redis/redis-pending-mint.store';
@@ -46,6 +49,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     { provide: USER_TOKEN_ISSUER, useClass: KeycloakCibaAdapter },
     { provide: PENDING_MINT_STORE, useClass: RedisPendingMintStore },
     UserTokenMintService,
+    // Reauth-токены для опасных операций (Phase 4)
+    { provide: REAUTH_TOKEN_STORE, useClass: RedisReauthTokenStore },
 
     // Use cases
     SignInUseCase,
@@ -58,6 +63,7 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     SignUpPhoneUseCase,
     SignInPhoneUseCase,
     HandleCibaChannelRequestUseCase,
+    RequestReauthUseCase,
 
     // Инфраструктура
     { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },

@@ -3,6 +3,12 @@ export const IDENTITY_ADMIN = Symbol('IDENTITY_ADMIN');
 /** Данные пользователя из Keycloak Admin API (без Keycloak-специфичных полей). */
 export interface IdentityAdminUser {
   keycloakId: string;
+  /**
+   * Логин в Keycloak. У email-пользователя это email, у phone-пользователя —
+   * телефон (ADR-0015), поэтому поле нужно там, где логин не выводится из
+   * других данных (подтверждение пароля в reauth, привязка federated identity).
+   */
+  username?: string | null;
   email: string | null;
   emailVerified: boolean;
   firstName: string | null;
@@ -50,6 +56,9 @@ export interface IdentityAdminPort {
 
   /** Поиск по username (используется, когда Keycloak не отдал `Location`). */
   findByUsername(username: string): Promise<IdentityAdminUser | null>;
+
+  /** Пользователь по `keycloakId` (то есть по `sub` из токена). */
+  findById(keycloakId: string): Promise<IdentityAdminUser | null>;
 
   findByEmail(email: string): Promise<IdentityAdminUser | null>;
 

@@ -28,6 +28,12 @@ import { SignUpPhoneUseCase } from '../../application/use-cases/sign-up-phone/si
 import { SignInPhoneCommand } from '../../application/use-cases/sign-in-phone/sign-in-phone.command';
 import { SignInPhoneUseCase } from '../../application/use-cases/sign-in-phone/sign-in-phone.use-case';
 import { Public } from '@shared/interfaces/http/decorators/public.decorator';
+import { CurrentUser } from '@shared/interfaces/http/decorators/current-user.decorator';
+import { TokenClaims } from '@shared/domain/token-claims';
+import { ReauthDto } from './dto/reauth.dto';
+import { ReauthResponseDto } from './dto/reauth-response.dto';
+import { RequestReauthCommand } from '../../application/use-cases/request-reauth/request-reauth.command';
+import { RequestReauthUseCase } from '../../application/use-cases/request-reauth/request-reauth.use-case';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -41,6 +47,7 @@ export class AuthController {
     private readonly forgotPasswordUC: ForgotPasswordUseCase,
     private readonly signUpPhoneUC: SignUpPhoneUseCase,
     private readonly signInPhoneUC: SignInPhoneUseCase,
+    private readonly requestReauthUC: RequestReauthUseCase,
   ) {}
 
   @Public()
@@ -95,6 +102,25 @@ export class AuthController {
   })
   async signInPhone(@Body() dto: SignInPhoneDto): Promise<TokenPairResponseDto> {
     return this.signInPhoneUC.execute(new SignInPhoneCommand(dto.phone, dto.verificationToken));
+  }
+
+  @Post('reauth')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Confirm password before sensitive operations',
+    description:
+      'Issues a one-shot reauth token (~5 min) that the client sends as X-Reauth-Token on contact-change and ' +
+      'password endpoints. The password is verified against the identity provider, and the session it creates is ' +
+      'revoked immediately — reauth is not a sign-in.',
+  })
+  @ApiResponse({ status: 200, type: ReauthResponseDto })
+  @ApiResponse({ status: 401, description: 'InvalidCredentials' })
+  async reauth(
+    @CurrentUser() user: TokenClaims,
+    @Body() dto: ReauthDto,
+  ): Promise<ReauthResponseDto> {
+    return this.requestReauthUC.execute(new RequestReauthCommand(user.sub, dto.password));
   }
 
   @Public()

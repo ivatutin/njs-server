@@ -80,6 +80,20 @@ export class KeycloakAdminClient {
     return response.data;
   }
 
+  /** Пользователь по id (`sub` токена); `null`, если его нет (Keycloak отдаёт 404). */
+  async findUserById(userId: string): Promise<KeycloakAdminUserRepresentation | null> {
+    try {
+      const response = await axios.get<KeycloakAdminUserRepresentation>(
+        `${this.adminUrl}/users/${userId}`,
+        await this.auth(),
+      );
+      return response.data;
+    } catch (err) {
+      if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
+      throw err;
+    }
+  }
+
   /**
    * Просит Keycloak отправить письмо-подтверждение.
    *
