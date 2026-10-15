@@ -36,6 +36,11 @@ export interface UserProvisioning {
     email?: string | null;
     /** Телефон (E.164) — второй канал контакта. */
     phone?: string | null;
+    /**
+     * Стабильный login-handle (ADR-0017 ред.2, путь B) — тот же, что `username` в Keycloak.
+     * Его генерирует auth-контекст ДО создания учётки, чтобы логин и shadow-запись не разошлись.
+     */
+    handle?: string | null;
     /** Телефон уже подтверждён верификацией до создания учётки (Phase 2). */
     phoneVerified?: boolean;
     firstName?: string | null;

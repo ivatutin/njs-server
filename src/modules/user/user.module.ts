@@ -1,10 +1,12 @@
 import { Global, Inject, Module, OnModuleInit } from '@nestjs/common';
 import { EVENT_BUS, EventBus } from '@shared/application/event-bus.interface';
 import { CONTACT_LOOKUP } from '@shared/application/contact-lookup.interface';
+import { LOGIN_HANDLE_RESOLVER } from '@shared/application/login-handle.interface';
 import { USER_PROVISIONING } from '@shared/application/user-provisioning.interface';
 import { USER_REPOSITORY } from './domain/repositories/user.repository';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { PrismaContactLookup } from './infrastructure/persistence/prisma-contact-lookup';
+import { PrismaLoginHandleResolver } from './infrastructure/persistence/prisma-login-handle.resolver';
 import { UserProvisioningAdapter } from './infrastructure/provisioning/user-provisioning.adapter';
 import { UserController } from './interfaces/http/user.controller';
 import { CreateUserUseCase } from './application/use-cases/create-user/create-user.use-case';
@@ -39,6 +41,8 @@ import {
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
     PrismaContactLookup,
     { provide: CONTACT_LOOKUP, useExisting: PrismaContactLookup },
+    PrismaLoginHandleResolver,
+    { provide: LOGIN_HANDLE_RESOLVER, useExisting: PrismaLoginHandleResolver },
     UserProvisioningAdapter,
     { provide: USER_PROVISIONING, useExisting: UserProvisioningAdapter },
     CreateUserUseCase,
@@ -54,7 +58,7 @@ import {
     OnUserSignedInHandler,
     OnEmailVerifiedHandler,
   ],
-  exports: [CONTACT_LOOKUP, USER_PROVISIONING],
+  exports: [CONTACT_LOOKUP, USER_PROVISIONING, LOGIN_HANDLE_RESOLVER],
 })
 export class UserModule implements OnModuleInit {
   constructor(

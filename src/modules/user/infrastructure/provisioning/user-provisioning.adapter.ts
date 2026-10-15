@@ -41,6 +41,7 @@ export class UserProvisioningAdapter implements UserProvisioning {
       keycloakId: params.keycloakId,
       email: params.email ?? null,
       phone: params.phone ?? null,
+      handle: params.handle ?? null,
       firstName: params.firstName ?? null,
       lastName: params.lastName ?? null,
     });

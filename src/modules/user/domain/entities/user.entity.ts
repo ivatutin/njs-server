@@ -17,6 +17,8 @@ export interface UserProps {
   emailVerifiedAt: Date | null;
   phoneVerifiedAt: Date | null;
   keycloakId: string;
+  /** Стабильный логин для Keycloak (ADR-0017 ред.2, путь B); неизменяем, может быть null у «старых» строк. */
+  handle: string | null;
   firstName: string | null;
   lastName: string | null;
   roles: string[];
@@ -32,6 +34,7 @@ export class User extends AggregateRoot<UserId> {
   private _emailVerifiedAt: Date | null;
   private _phoneVerifiedAt: Date | null;
   private _keycloakId: string;
+  private _handle: string | null;
   private _firstName: string | null;
   private _lastName: string | null;
   private _roles: string[];
@@ -47,6 +50,7 @@ export class User extends AggregateRoot<UserId> {
     this._emailVerifiedAt = props.emailVerifiedAt;
     this._phoneVerifiedAt = props.phoneVerifiedAt;
     this._keycloakId = props.keycloakId;
+    this._handle = props.handle;
     this._firstName = props.firstName;
     this._lastName = props.lastName;
     this._roles = props.roles;
@@ -61,6 +65,7 @@ export class User extends AggregateRoot<UserId> {
     email?: string | null;
     phone?: string | null;
     keycloakId: string;
+    handle?: string | null;
     firstName?: string | null;
     lastName?: string | null;
     roles?: string[];
@@ -82,6 +87,7 @@ export class User extends AggregateRoot<UserId> {
       emailVerifiedAt: null,
       phoneVerifiedAt: null,
       keycloakId: props.keycloakId,
+      handle: props.handle ?? null,
       firstName: props.firstName ?? null,
       lastName: props.lastName ?? null,
       roles: props.roles ?? [],
@@ -122,6 +128,11 @@ export class User extends AggregateRoot<UserId> {
   }
   get keycloakId(): string {
     return this._keycloakId;
+  }
+
+  /** Стабильный логин в Keycloak; `null` — строка создана до политики пути B или вне наших sign-up. */
+  get handle(): string | null {
+    return this._handle;
   }
   get firstName(): string | null {
     return this._firstName;
