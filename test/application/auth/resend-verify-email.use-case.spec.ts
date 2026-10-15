@@ -25,6 +25,7 @@ describe('ResendVerifyEmailUseCase', () => {
       findByUsername: jest.fn(),
       findById: jest.fn(),
       setPassword: jest.fn(),
+      logoutAllSessions: jest.fn(),
     };
     useCase = new ResendVerifyEmailUseCase(identityAdmin);
   });

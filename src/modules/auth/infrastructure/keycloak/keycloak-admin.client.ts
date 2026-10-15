@@ -108,6 +108,11 @@ export class KeycloakAdminClient {
     );
   }
 
+  /** Гасит все сессии пользователя (refresh-токены становятся недействительными). */
+  async logoutUser(userId: string): Promise<void> {
+    await axios.post(`${this.adminUrl}/users/${userId}/logout`, null, await this.auth());
+  }
+
   /**
    * Просит Keycloak отправить письмо-подтверждение.
    *

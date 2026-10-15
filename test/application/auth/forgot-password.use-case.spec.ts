@@ -27,6 +27,7 @@ describe('ForgotPasswordUseCase', () => {
       findByUsername: jest.fn(),
       findById: jest.fn(),
       setPassword: jest.fn(),
+      logoutAllSessions: jest.fn(),
     };
     rateLimiter = { consume: jest.fn().mockResolvedValue({ allowed: true }) };
     useCase = new ForgotPasswordUseCase(identityAdmin, rateLimiter);

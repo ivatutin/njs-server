@@ -17,6 +17,11 @@ const envSchema = z.object({
   KEYCLOAK_ISSUER: z.string().url().optional(),
   THROTTLE_TTL: z.coerce.number().default(60),
   THROTTLE_LIMIT: z.coerce.number().default(100),
+  /**
+   * TTL access-токена Keycloak — должен совпадать с настройкой реалма. Из него считается TTL метки отзыва
+   * доступа (ADR-0018, C4), поэтому значение живёт в одном месте.
+   */
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().default(300),
   // Звонковая верификация телефона (SMS.ru callcheck, ADR-0014)
   SMSRU_API_ID: z.string().optional().default(''),
   SMSRU_CALLCHECK_ENABLED: z.enum(['true', 'false']).optional().default('false'),

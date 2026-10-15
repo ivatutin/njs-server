@@ -374,6 +374,13 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 **Коды:** `ReauthTokenInvalid`, `ReauthTokenExpired`, `ChangeTokenExpired`, `ContactAlreadyExists`, `ContactChangeAlreadyPending`, `PasswordPolicyViolation`, `OtpInvalid`, `OtpExpired`.
 
+> **Отзыв доступа (ADR-0018) реализован ✓** — `RevokeUserAccessUseCase`: Keycloak `logoutAllSessions` (ретраи 3×, не
+> best-effort) → метка `auth:sub-revoked:<sub>`; вызовы из `password` и `set-password` **до** записи пароля; `sign-out`
+> остаётся пер-токенным (не отзывает по `sub`). Guard: проверка `azp` нашего клиента + блоклист токена и метка по `sub`
+> одним `MGET`, отсутствие `iat` → fail-closed. TTL метки = `ACCESS_TOKEN_TTL_SECONDS` + запас (одна конфигурация).
+> Acceptance: старый access → `401 Token has been revoked`, refresh → `401`, свежий вход → `200`, `sign-out` не убивает
+> другое устройство; окно ≤ 1 с (строгое `iat < revokedAt`) воспроизведено живьём.
+
 **Acceptance Phase 4 (reauth) — ✅ пройден на живом стеке (15.10.2026):**
 ```
 sign-in/phone (+79990000110)         → access token

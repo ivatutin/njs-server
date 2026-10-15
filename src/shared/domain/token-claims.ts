@@ -12,4 +12,9 @@ export interface TokenClaims {
   /** `null` для phone-пользователей: email у них не обязателен (Phase 2). */
   email: string | null;
   roles: string[];
+  /**
+   * `iat` из токена в секундах. Нужен отзыву доступа (ADR-0018): guard отклоняет токены,
+   * выданные раньше метки отзыва пользователя.
+   */
+  issuedAt: number;
 }

@@ -1,15 +1,27 @@
-/** DI token for the token blacklist storage. */
+/** DI token for the token blacklist / revocation storage. */
 export const TOKEN_STORE = Symbol('TOKEN_STORE');
 
 /**
- * Port for storing revoked access tokens until they naturally expire.
- * Used during sign-out: the access token can still be presented by clients,
- * so we keep it in a denylist with TTL equal to its remaining lifetime.
+ * Порт хранилища отозванных доступов (ADR-0018).
+ *
+ * Два независимых механизма:
+ * - **блоклист конкретного токена** — используется `sign-out` (выход только на этом устройстве);
+ * - **метка отзыва по пользователю** (`sub`) — «все токены, выданные до X, мертвы»; ставится только неделимым
+ *   юзкейсом `RevokeUserAccessUseCase`, который сначала гасит сессии Keycloak.
  */
 export interface TokenStorePort {
-  /** Mark token as revoked. TTL should equal remaining token lifetime. */
+  /** Помечает конкретный токен отозванным. TTL = остаток жизни токена. */
   blacklistToken(token: string, ttlSeconds: number): Promise<void>;
 
-  /** Check whether a token has been previously blacklisted. */
-  isTokenBlacklisted(token: string): Promise<boolean>;
+  /**
+   * Помечает всех пользователей-токены отозванными: всё, что выдано **раньше** этого момента, недействительно.
+   * TTL = TTL access-токена + запас (ADR-0018, C4).
+   */
+  revokeUserTokens(sub: string, ttlSeconds: number): Promise<void>;
+
+  /**
+   * Проверка на горячем пути guard'а: блоклист токена **и** метка отзыва по `sub` одним MGET.
+   * `issuedAt` — значение `iat` из claims (в секундах).
+   */
+  isAccessRevoked(params: { token: string; sub: string; issuedAt: number }): Promise<boolean>;
 }

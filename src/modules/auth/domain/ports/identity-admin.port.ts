@@ -68,6 +68,12 @@ export interface IdentityAdminPort {
    */
   setPassword(params: { keycloakId: string; password: string }): Promise<void>;
 
+  /**
+   * Гасит **все** сессии пользователя в Keycloak (refresh-токены перестают работать).
+   * Шаг 1 неделимого отзыва доступа (ADR-0018) — вызывается только оттуда; ошибка не глушится в best-effort.
+   */
+  logoutAllSessions(keycloakId: string): Promise<void>;
+
   findByEmail(email: string): Promise<IdentityAdminUser | null>;
 
   /** Просит Keycloak отправить письмо-подтверждение (realm SMTP). */

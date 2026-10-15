@@ -17,7 +17,7 @@ function contextFor(
 }
 
 function claims(sub: string): TokenClaims {
-  return { sub, email: null, roles: [] };
+  return { sub, email: null, roles: [], issuedAt: 1700000000 };
 }
 
 describe('ReauthTokenGuard', () => {

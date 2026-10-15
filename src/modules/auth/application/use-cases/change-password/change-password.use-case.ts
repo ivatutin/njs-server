@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
 import { IDENTITY_ADMIN, IdentityAdminPort } from '../../../domain/ports/identity-admin.port';
+import { RevokeUserAccessCommand } from '../revoke-user-access/revoke-user-access.command';
+import { RevokeUserAccessUseCase } from '../revoke-user-access/revoke-user-access.use-case';
 import { ChangePasswordCommand } from './change-password.command';
 
 /**
@@ -15,9 +17,15 @@ import { ChangePasswordCommand } from './change-password.command';
  */
 @Injectable()
 export class ChangePasswordUseCase implements UseCase<ChangePasswordCommand, void> {
-  constructor(@Inject(IDENTITY_ADMIN) private readonly identityAdmin: IdentityAdminPort) {}
+  constructor(
+    @Inject(IDENTITY_ADMIN) private readonly identityAdmin: IdentityAdminPort,
+    private readonly revoke: RevokeUserAccessUseCase,
+  ) {}
 
   async execute(cmd: ChangePasswordCommand): Promise<void> {
+    // Отзыв — ДО коммита (ADR-0018): состояние «пароль изменён, доступ не отозван» недостижимо по построению.
+    await this.revoke.execute(new RevokeUserAccessCommand(cmd.keycloakId, 'password-change'));
+
     await this.identityAdmin.setPassword({
       keycloakId: cmd.keycloakId,
       password: cmd.newPassword,

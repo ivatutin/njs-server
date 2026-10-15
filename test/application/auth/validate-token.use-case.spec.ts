@@ -17,11 +17,13 @@ describe('ValidateTokenUseCase', () => {
         sub: 'kc',
         email: 'a@b.com',
         roles: [],
+        issuedAt: 1700000000,
       }),
     };
     store = {
       blacklistToken: jest.fn(),
-      isTokenBlacklisted: jest.fn().mockResolvedValue(false),
+      revokeUserTokens: jest.fn(),
+      isAccessRevoked: jest.fn().mockResolvedValue(false),
     };
     useCase = new ValidateTokenUseCase(idp, store);
   });
@@ -32,10 +34,15 @@ describe('ValidateTokenUseCase', () => {
     expect(idp.verifyAccessToken).toHaveBeenCalledWith('at');
   });
 
-  it('throws InvalidTokenError when blacklisted (does not call verify)', async () => {
-    store.isTokenBlacklisted.mockResolvedValue(true);
-    await expect(useCase.execute('blacklisted')).rejects.toThrow(InvalidTokenError);
-    expect(idp.verifyAccessToken).not.toHaveBeenCalled();
+  it('throws InvalidTokenError when the token is revoked (ADR-0018)', async () => {
+    store.isAccessRevoked.mockResolvedValue(true);
+    await expect(useCase.execute('revoked')).rejects.toThrow(InvalidTokenError);
+    // Отзыв проверяется после верификации: метка сверяется с `sub` и `iat` из claims.
+    expect(store.isAccessRevoked).toHaveBeenCalledWith({
+      token: 'revoked',
+      sub: 'kc',
+      issuedAt: 1700000000,
+    });
   });
 
   it('propagates verify errors', async () => {

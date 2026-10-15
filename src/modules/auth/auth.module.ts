@@ -19,6 +19,7 @@ import { CibaChannelController } from './interfaces/http/ciba-channel.controller
 import { AccountSecurityController } from './interfaces/http/account-security.controller';
 import { SetPasswordUseCase } from './application/use-cases/set-password/set-password.use-case';
 import { ChangePasswordUseCase } from './application/use-cases/change-password/change-password.use-case';
+import { RevokeUserAccessUseCase } from './application/use-cases/revoke-user-access/revoke-user-access.use-case';
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
 import { KeycloakJwtVerifier } from './infrastructure/keycloak/keycloak-jwt.verifier';
 import { KeycloakAdapter } from './infrastructure/keycloak/keycloak.adapter';
@@ -71,6 +72,7 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     RequestReauthUseCase,
     SetPasswordUseCase,
     ChangePasswordUseCase,
+    RevokeUserAccessUseCase,
 
     // Инфраструктура
     { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },

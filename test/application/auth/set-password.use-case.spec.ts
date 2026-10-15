@@ -2,6 +2,7 @@ import { PasswordPolicyViolationError } from '../../../src/modules/auth/domain/e
 import { IdentityAdminPort } from '../../../src/modules/auth/domain/ports/identity-admin.port';
 import { SetPasswordCommand } from '../../../src/modules/auth/application/use-cases/set-password/set-password.command';
 import { SetPasswordUseCase } from '../../../src/modules/auth/application/use-cases/set-password/set-password.use-case';
+import { RevokeUserAccessUseCase } from '../../../src/modules/auth/application/use-cases/revoke-user-access/revoke-user-access.use-case';
 import { VerificationTokenConsumer } from '../../../src/shared/application/verification-token-consumer.interface';
 import { VerificationTokenExpiredError } from '../../../src/shared/domain/errors/verification-token-expired.error';
 import { VerificationTokenInvalidError } from '../../../src/shared/domain/errors/verification-token-invalid.error';
@@ -12,6 +13,7 @@ const PHONE = '+79990000110';
 describe('SetPasswordUseCase', () => {
   let verification: jest.Mocked<VerificationTokenConsumer>;
   let identityAdmin: jest.Mocked<IdentityAdminPort>;
+  let revoke: jest.Mocked<RevokeUserAccessUseCase>;
   let useCase: SetPasswordUseCase;
 
   beforeEach(() => {
@@ -29,8 +31,10 @@ describe('SetPasswordUseCase', () => {
         lastName: 'Петров',
       }),
       setPassword: jest.fn().mockResolvedValue(undefined),
+      logoutAllSessions: jest.fn(),
     } as unknown as jest.Mocked<IdentityAdminPort>;
-    useCase = new SetPasswordUseCase(verification, identityAdmin);
+    revoke = { execute: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<RevokeUserAccessUseCase>;
+    useCase = new SetPasswordUseCase(verification, identityAdmin, revoke);
   });
 
   it('sets the password when the token belongs to the caller’s own phone', async () => {

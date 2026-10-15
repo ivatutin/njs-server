@@ -13,6 +13,13 @@ const VERIFY_EMAIL_EVENT = 'VERIFY_EMAIL';
 const MAX_EVENTS_PER_POLL = 100;
 /** Ссылка «сменить пароль» живёт 1 час (чек-лист Phase 1.5). */
 const PASSWORD_RESET_LINK_TTL = 3600;
+/** Отзыв доступа (ADR-0018): шаг «погасить сессии» — 3 попытки, дальше ошибка наружу. */
+const LOGOUT_ATTEMPTS = 3;
+const LOGOUT_RETRY_DELAY_MS = 300;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * Keycloak-backed реализация `IdentityAdminPort`.
@@ -129,6 +136,27 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
       // 400 с `errorMessage` от Keycloak = нарушение password policy (как при создании).
       throw this.mapCreateUserError(err);
     }
+  }
+
+  /**
+   * Шаг 1 отзыва доступа (ADR-0018): гасит все сессии. Именно этот шаг нельзя обойти refresh'ем, поэтому
+   * он **не** best-effort — 3 попытки, затем ошибка наружу (юзкейс отдаст 503 и не поставит метку).
+   */
+  async logoutAllSessions(keycloakId: string): Promise<void> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= LOGOUT_ATTEMPTS; attempt += 1) {
+      try {
+        await this.client.logoutUser(keycloakId);
+        return;
+      } catch (err) {
+        lastError = err;
+        this.logKeycloakRejection('logoutAllSessions', err);
+        if (attempt < LOGOUT_ATTEMPTS) await delay(LOGOUT_RETRY_DELAY_MS);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error('Keycloak logout failed');
   }
 
   async sendVerifyEmail(keycloakId: string): Promise<void> {

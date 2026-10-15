@@ -16,9 +16,18 @@ export class ValidateTokenUseCase implements UseCase<string, TokenClaims> {
   ) {}
 
   async execute(accessToken: string): Promise<TokenClaims> {
-    if (await this.tokenStore.isTokenBlacklisted(accessToken)) {
+    const claims = await this.idp.verifyAccessToken(accessToken);
+
+    // Отзыв доступа (ADR-0018): блоклист конкретного токена + метка по `sub` — одним MGET (C2).
+    const revoked = await this.tokenStore.isAccessRevoked({
+      token: accessToken,
+      sub: claims.sub,
+      issuedAt: claims.issuedAt,
+    });
+    if (revoked) {
       throw new InvalidTokenError('Token has been revoked');
     }
-    return this.idp.verifyAccessToken(accessToken);
+
+    return claims;
   }
 }

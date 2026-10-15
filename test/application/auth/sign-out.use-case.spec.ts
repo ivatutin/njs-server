@@ -23,7 +23,8 @@ describe('SignOutUseCase', () => {
     };
     store = {
       blacklistToken: jest.fn().mockResolvedValue(undefined),
-      isTokenBlacklisted: jest.fn(),
+      revokeUserTokens: jest.fn(),
+      isAccessRevoked: jest.fn(),
     };
     useCase = new SignOutUseCase(idp, store);
   });
@@ -33,6 +34,8 @@ describe('SignOutUseCase', () => {
     await useCase.execute(new SignOutCommand(at, 'rt'));
     expect(idp.signOut).toHaveBeenCalledWith('rt');
     expect(store.blacklistToken).toHaveBeenCalledTimes(1);
+    // ADR-0018: sign-out НЕ отзывает по `sub` — иначе выход на одном устройстве убивал бы все.
+    expect(store.revokeUserTokens).not.toHaveBeenCalled();
     const [token, ttl] = (store.blacklistToken as jest.Mock).mock.calls[0];
     expect(token).toBe(at);
     expect(ttl).toBeGreaterThan(100);

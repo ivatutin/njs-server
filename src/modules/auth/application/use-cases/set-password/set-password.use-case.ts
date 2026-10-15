@@ -7,6 +7,8 @@ import {
 import { VerificationTokenExpiredError } from '@shared/domain/errors/verification-token-expired.error';
 import { VerificationTokenInvalidError } from '@shared/domain/errors/verification-token-invalid.error';
 import { IDENTITY_ADMIN, IdentityAdminPort } from '../../../domain/ports/identity-admin.port';
+import { RevokeUserAccessCommand } from '../revoke-user-access/revoke-user-access.command';
+import { RevokeUserAccessUseCase } from '../revoke-user-access/revoke-user-access.use-case';
 import { SetPasswordCommand } from './set-password.command';
 
 /**
@@ -26,6 +28,7 @@ export class SetPasswordUseCase implements UseCase<SetPasswordCommand, void> {
     @Inject(VERIFICATION_TOKEN_CONSUMER)
     private readonly verification: VerificationTokenConsumer,
     @Inject(IDENTITY_ADMIN) private readonly identityAdmin: IdentityAdminPort,
+    private readonly revoke: RevokeUserAccessUseCase,
   ) {}
 
   async execute(cmd: SetPasswordCommand): Promise<void> {
@@ -48,6 +51,9 @@ export class SetPasswordUseCase implements UseCase<SetPasswordCommand, void> {
       );
       throw new VerificationTokenInvalidError();
     }
+
+    // Отзыв — ДО коммита (ADR-0018): пароль установлен, старый доступ уже мёртв.
+    await this.revoke.execute(new RevokeUserAccessCommand(cmd.keycloakId, 'password-change'));
 
     await this.identityAdmin.setPassword({
       keycloakId: cmd.keycloakId,
