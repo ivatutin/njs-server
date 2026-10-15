@@ -24,6 +24,13 @@ export interface UserContactsSnapshot {
 }
 
 export interface UserContacts {
+  /**
+   * Нормализация контакта по правилам user-контекста: email → lowercase, телефон → E.164.
+   * Нужна вызывающему до отправки кода (адрес, куда реально уйдёт письмо/SMS) — чтобы auth
+   * не дублировал value-objects чужого контекста.
+   */
+  normalize(channel: 'email' | 'phone', value: string): string;
+
   /** Текущее состояние контактов (для `request`: какой контакт заменяем и подтверждён ли он). */
   find(keycloakId: string): Promise<UserContactsSnapshot | null>;
 

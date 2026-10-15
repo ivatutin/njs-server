@@ -42,6 +42,11 @@ export class UserContactsAdapter implements UserContacts {
     @Inject(EVENT_BUS) private readonly eventBus: EventBus,
   ) {}
 
+  normalize(channel: 'email' | 'phone', value: string): string {
+    if (channel === 'email') return Email.create(value).toString();
+    return Phone.create(value).getValue() ?? value;
+  }
+
   async find(keycloakId: string): Promise<UserContactsSnapshot | null> {
     const row = await this.prisma.user.findUnique({ where: { keycloakId } });
     return row ? toSnapshot(UserMapper.toDomain(row)) : null;
