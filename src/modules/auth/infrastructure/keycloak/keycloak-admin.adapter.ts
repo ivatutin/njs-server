@@ -33,6 +33,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
   constructor(private readonly client: KeycloakAdminClient) {}
 
   async createEmailUser(params: {
+    username: string;
     email: string;
     password: string;
     firstName?: string | null;
@@ -40,7 +41,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
   }): Promise<{ keycloakId: string }> {
     try {
       const keycloakId = await this.client.createUser({
-        username: params.email,
+        username: params.username,
         email: params.email,
         emailVerified: false,
         enabled: true,
@@ -71,19 +72,19 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
   }
 
   async createPhoneUser(params: {
+    username: string;
     phone: string;
     firstName: string;
     lastName: string;
   }): Promise<{ keycloakId: string }> {
     try {
       const keycloakId = await this.client.createUser({
-        username: params.phone,
+        username: params.username,
         enabled: true,
         firstName: params.firstName,
         lastName: params.lastName,
-        // Наши атрибуты: по ним же ищем пользователя и отличаем подтверждённый
-        // телефон от неподтверждённого (Keycloak пароль не выдаёт — вход только
-        // через верификацию телефона, ADR-0014/ADR-0015).
+        // Наши атрибуты: телефон живёт здесь (не в username — путь B), `phoneVerified` отличает подтверждённый
+        // контакт; вход у phone-пользователя только через верификацию телефона (ADR-0014/ADR-0015).
         attributes: {
           phoneNumber: [params.phone],
           phoneVerified: ['true'],
@@ -92,7 +93,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
 
       if (keycloakId) return { keycloakId };
 
-      const created = await this.findByUsername(params.phone);
+      const created = await this.findByUsername(params.username);
       if (!created) throw new Error('Keycloak user was created but cannot be located by username');
       return { keycloakId: created.keycloakId };
     } catch (err) {

@@ -107,6 +107,7 @@ describe('SignUpPhoneUseCase', () => {
     await useCase.execute(new SignUpPhoneCommand(PHONE, 'token', true));
 
     expect(identityAdmin.createPhoneUser).toHaveBeenCalledWith({
+      username: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       phone: PHONE,
       firstName: 'Пользователь',
       lastName: '—',
@@ -115,6 +116,7 @@ describe('SignUpPhoneUseCase', () => {
       keycloakId: 'kc-1',
       phone: PHONE,
       phoneVerified: true,
+      handle: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       firstName: 'Пользователь',
       lastName: '—',
     });
@@ -124,6 +126,7 @@ describe('SignUpPhoneUseCase', () => {
     await useCase.execute(new SignUpPhoneCommand(PHONE, 'token', true, 'Иван', 'Петров'));
 
     expect(identityAdmin.createPhoneUser).toHaveBeenCalledWith({
+      username: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       phone: PHONE,
       firstName: 'Иван',
       lastName: 'Петров',
@@ -139,10 +142,14 @@ describe('SignUpPhoneUseCase', () => {
 
     expect(pendingMints.save).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ loginHint: PHONE, keycloakId: 'kc-1', purpose: 'sign-up' }),
+      expect.objectContaining({
+        loginHint: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
+        keycloakId: 'kc-1',
+        purpose: 'sign-up',
+      }),
     );
     expect(issuer.startBackchannelAuth).toHaveBeenCalledWith({
-      loginHint: PHONE,
+      loginHint: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       bindingMessage: expect.any(String),
     });
     expect(result.user.phoneVerified).toBe(true);

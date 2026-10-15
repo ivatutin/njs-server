@@ -284,6 +284,17 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
 8. Там же (User profile) включить **`unmanagedAttributePolicy = ENABLED`**. Без этого Keycloak **молча отбрасывает**
    нестандартные атрибуты, и наши `phoneNumber` / `phoneVerified` (их пишет phone-регистрация, ADR-0015) не сохраняются.
    Проверка: `GET /admin/realms/<realm>/users/{id}` → в `attributes` видны `phoneNumber` и `phoneVerified`.
+9. **Логин = стабильный handle (путь B, ADR-0017 ред.2).** `username` пользователя — не контакт, а `usr_<16 hex>`,
+   который бэкенд генерирует сам при регистрации (`generateLoginHandle`). Поэтому **Realm settings → Login → User
+   registration → Edit username обязан остаться ВЫКЛЮЧЕН** (`editUsernameAllowed=false`): логин неизменяем,
+   переименований в реалме нет.
+   Проверки: `PUT /admin/realms/<realm>/users/<id>` с новым `username` → `400 error-user-attribute-read-only`;
+   `GET /admin/realms/<realm>/users?username=<handle>` находит пользователя, а запрос по телефону — нет.
+10. **`loginWithEmailAllowed = ON`** (`Realm settings → Login → Email as username`-семантика): вход по email должен
+   резолвить пользователя по **атрибуту** `email`, потому что `username` теперь handle. Проверка: password-grant с
+   `username=<email>` и паролем пользователя отдаёт токены, а не `invalid_grant`.
+   Профиль: `email` редактируем админом (у роли admin есть `edit`), `phoneNumber` — нестандартный атрибут и редактируется
+   благодаря `unmanagedAttributePolicy = ENABLED` (пункт 8). Без этого смена контакта в `contact-change` не запишется.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

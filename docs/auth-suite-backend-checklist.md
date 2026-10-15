@@ -420,6 +420,49 @@ Advanced-операции (сессии, отвязка провайдеров, 
 
 ---
 
+## Политика логина — путь B: стабильный handle (ADR-0017 ред.2, решение координатора 15.10.2026)
+
+`username` в Keycloak больше **не контакт**, а стабильный `handle` (`usr_<16 hex>`): не PII, неизменяем, уникален,
+резолвится локально. `editUsernameAllowed` **не включаем** — переименования нет, значит нет и шага «переименовать логин»
+(это же был единственный сценарий частичного сбоя B2 из ревью ADR-0017).
+
+| Что | Как |
+|---|---|
+| Генерация | `generateLoginHandle()` (`src/shared/domain/login-handle.ts`) — при регистрации, **до** создания учётки в Keycloak |
+| Хранение | `User.handle` (shadow, `@unique`, nullable) + миграция `20261015120000_add_user_handle` |
+| Резолвер | shared-порт `LOGIN_HANDLE_RESOLVER` (`byPhone` / `byEmail` / `byKeycloakId`) → `PrismaLoginHandleResolver`; локальный, без вызова admin-API |
+| Точки использования | `sign-up/email`, `sign-up/phone` (создание), `sign-in` (email → handle), `sign-in/phone` (CIBA `login_hint = handle`), `reauth` |
+| Фолбэки | `handle = null` (строки до политики, пользователи заведённые вне наших sign-up): вход по email → сам email (`loginWithEmailAllowed=true`), `reauth` → `username` из admin-API |
+| `preferred_username` | как логин не используется нигде (0 вхождений в `src`) — везде `sub` |
+
+**Миграция данных.** Переименование в реалме невозможно (`400 error-user-attribute-read-only` при `editUsernameAllowed=false`),
+реальных пользователей нет — поэтому dev-фикстуры стиля A (телефоны в `username`, `phase1*`/`phase13*`, `stubuser`,
+orphan-учётки) удалены и пересоздаются уже с handle; прод-реалм стартует с политикой с первого дня. Исключение —
+защищённый `test@test.com`: он не тронут, вход по email работает через фолбэк (проверено).
+
+**Живые проверки ДО кода (15.10.2026):**
+```
+реалм: loginWithEmailAllowed=true, editUsernameAllowed=false (не меняем)
+CIBA login_hint=usr_7c1f9a2b4d6e  → 503 server_error (KC резолвил handle и зовёт наш канал; заявки в Redis нет)
+CIBA login_hint=bogus-handle-xyz  → 400 invalid_request: invalid_user   ← другой ответ ⇒ резолв реальный
+password-grant по handle          → 200 { expires_in: 300 }
+password-grant по email-атрибуту  → 200 { expires_in: 300 }   (username = handle, не email)
+preferred_username в `src`        → 0 вхождений
+```
+
+**Acceptance пути B на живом стеке (15.10.2026):**
+```
+sign-up/email pathb3-39723@example.com → KC username = usr_4d6fa92bb4c74d0a, shadow.handle = тот же
+sign-in (email + password)             → 200 access/refresh; GET /users/me → 200
+POST /auth/reauth { password }         → 200 reauthToken      ← резолвер: byKeycloakId → handle → password-grant по handle
+sign-up/phone +79990000122             → KC username = usr_1217d9590769067e, shadow.handle = тот же, keycloak_id = bb407812…
+GET /admin/.../users?username=+7999…   → 0 (телефон в username не попадает); по handle → 1
+POST /auth/sign-in/phone (OTP → CIBA)  → 200 { expires_in: 300 }; GET /users/me → 200   ← login_hint = handle
+```
+Тестовые данные: фикстуры телефонов `+79990000106…110` и прочие артефакты стиля A удалены; `test@test.com` не тронут.
+
+---
+
 ## Итог по объёму
 
 | Фаза | Эндпоинты | Ключевая инфра |

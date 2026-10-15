@@ -37,6 +37,11 @@ export interface IdentityAdminPort {
    * Ошибки: `ContactAlreadyExistsError` (409), `PasswordPolicyViolationError` (422).
    */
   createEmailUser(params: {
+    /**
+     * Логин в Keycloak. По политике пути B (ADR-0017 ред.2) это **handle**, а не контакт:
+     * переименование в реалме запрещено (`editUsernameAllowed=false`), поэтому логин не должен «ехать».
+     */
+    username: string;
     email: string;
     password: string;
     firstName?: string | null;
@@ -44,13 +49,12 @@ export interface IdentityAdminPort {
   }): Promise<{ keycloakId: string }>;
 
   /**
-   * Создаёт phone-пользователя без пароля: `username` = телефон (Keycloak 26
-   * резолвит username/email по `login_hint`, иначе CIBA его не найдёт),
-   * атрибуты `phoneNumber`/`phoneVerified`, профиль заполнен (требование
-   * user-profile в KC 26 — иначе пользователь «not fully set up»).
+   * Создаёт phone-пользователя без пароля: `username` = **handle** (путь B; CIBA-`login_hint` — тоже handle),
+   * атрибуты `phoneNumber`/`phoneVerified`, профиль заполнен (требование user-profile в KC 26).
    * Ошибки: `ContactAlreadyExistsError` (409).
    */
   createPhoneUser(params: {
+    username: string;
     phone: string;
     firstName: string;
     lastName: string;

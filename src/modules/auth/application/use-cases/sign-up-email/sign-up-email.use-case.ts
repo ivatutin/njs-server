@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
+import { generateLoginHandle } from '@shared/domain/login-handle';
 import {
   ProvisionedUser,
   USER_PROVISIONING,
@@ -36,7 +37,11 @@ export class SignUpEmailUseCase implements UseCase<SignUpEmailCommand, SignUpEma
   async execute(cmd: SignUpEmailCommand): Promise<SignUpEmailResult> {
     if (cmd.acceptedTerms !== true) throw new TermsNotAcceptedError();
 
+    // Путь B (ADR-0017 ред.2): логин в Keycloak — стабильный handle, email живёт отдельным атрибутом.
+    const handle = generateLoginHandle();
+
     const created = await this.identityAdmin.createEmailUser({
+      username: handle,
       email: cmd.email,
       password: cmd.password,
       firstName: cmd.firstName,
@@ -46,6 +51,7 @@ export class SignUpEmailUseCase implements UseCase<SignUpEmailCommand, SignUpEma
     const user = await this.users.ensureFromIdentity({
       keycloakId: created.keycloakId,
       email: cmd.email,
+      handle,
       firstName: cmd.firstName,
       lastName: cmd.lastName,
     });

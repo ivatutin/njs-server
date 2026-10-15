@@ -1,5 +1,6 @@
 import { InvalidCredentialsError } from '../../../src/modules/auth/domain/errors/invalid-credentials.error';
 import { IdentityAdminPort } from '../../../src/modules/auth/domain/ports/identity-admin.port';
+import { LoginHandleResolver } from '../../../src/shared/application/login-handle.interface';
 import { IdentityProviderPort } from '../../../src/modules/auth/domain/ports/identity-provider.port';
 import { ReauthTokenStore } from '../../../src/modules/auth/domain/ports/reauth-token-store.port';
 import { RequestReauthCommand } from '../../../src/modules/auth/application/use-cases/request-reauth/request-reauth.command';
@@ -12,6 +13,7 @@ describe('RequestReauthUseCase', () => {
   let identityAdmin: jest.Mocked<IdentityAdminPort>;
   let idp: jest.Mocked<IdentityProviderPort>;
   let reauthTokens: jest.Mocked<ReauthTokenStore>;
+  let handles: jest.Mocked<LoginHandleResolver>;
   let useCase: RequestReauthUseCase;
 
   beforeEach(() => {
@@ -37,7 +39,12 @@ describe('RequestReauthUseCase', () => {
       issue: jest.fn().mockResolvedValue({ token: 'reauth-token-1', expiresAt: EXPIRES_AT }),
       consume: jest.fn(),
     } as unknown as jest.Mocked<ReauthTokenStore>;
-    useCase = new RequestReauthUseCase(identityAdmin, idp, reauthTokens);
+    handles = {
+      byPhone: jest.fn(),
+      byEmail: jest.fn(),
+      byKeycloakId: jest.fn().mockResolvedValue('usr_reauth_handle'),
+    } as unknown as jest.Mocked<LoginHandleResolver>;
+    useCase = new RequestReauthUseCase(identityAdmin, idp, reauthTokens, handles);
   });
 
   it('issues a one-shot reauth token after the password is confirmed', async () => {
@@ -47,10 +54,11 @@ describe('RequestReauthUseCase', () => {
     expect(reauthTokens.issue).toHaveBeenCalledWith({ keycloakId: KC_ID });
   });
 
-  it('uses the Keycloak username, so passwordless phone users work too', async () => {
+  it('uses the login handle from the resolver, so passwordless phone users work too', async () => {
     await useCase.execute(new RequestReauthCommand(KC_ID, 'passw0rd'));
 
-    expect(idp.signIn).toHaveBeenCalledWith('+79990000110', 'passw0rd');
+    expect(handles.byKeycloakId).toHaveBeenCalledWith(KC_ID);
+    expect(idp.signIn).toHaveBeenCalledWith('usr_reauth_handle', 'passw0rd');
   });
 
   it('revokes the session created by the password check (reauth is not a sign-in)', async () => {
@@ -69,6 +77,7 @@ describe('RequestReauthUseCase', () => {
   });
 
   it('answers 401 when the user has no identity in Keycloak', async () => {
+    handles.byKeycloakId.mockResolvedValue(null);
     identityAdmin.findById.mockResolvedValue(null);
 
     await expect(useCase.execute(new RequestReauthCommand(KC_ID, 'passw0rd'))).rejects.toThrow(

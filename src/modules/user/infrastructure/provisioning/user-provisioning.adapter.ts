@@ -20,6 +20,8 @@ export class UserProvisioningAdapter implements UserProvisioning {
     email?: string | null;
     phone?: string | null;
     phoneVerified?: boolean;
+    /** Стабильный логин (ADR-0017 ред.2, путь B) — тот же, что `username` в Keycloak. */
+    handle?: string | null;
     firstName?: string | null;
     lastName?: string | null;
   }): Promise<ProvisionedUser> {

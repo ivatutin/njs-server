@@ -1,5 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
+import {
+  LOGIN_HANDLE_RESOLVER,
+  LoginHandleResolver,
+} from '@shared/application/login-handle.interface';
 import { InvalidCredentialsError } from '../../../domain/errors/invalid-credentials.error';
 import { IDENTITY_ADMIN, IdentityAdminPort } from '../../../domain/ports/identity-admin.port';
 import {
@@ -35,11 +39,16 @@ export class RequestReauthUseCase implements UseCase<RequestReauthCommand, Reque
     @Inject(IDENTITY_ADMIN) private readonly identityAdmin: IdentityAdminPort,
     @Inject(IDENTITY_PROVIDER) private readonly idp: IdentityProviderPort,
     @Inject(REAUTH_TOKEN_STORE) private readonly reauthTokens: ReauthTokenStore,
+    @Inject(LOGIN_HANDLE_RESOLVER) private readonly handles: LoginHandleResolver,
   ) {}
 
   async execute(cmd: RequestReauthCommand): Promise<RequestReauthResult> {
-    const identity = await this.identityAdmin.findById(cmd.keycloakId);
-    if (!identity?.username) {
+    // Логин в Keycloak — handle (путь B); username из админ-API — фолбэк для строк, созданных до политики.
+    const handle = await this.handles.byKeycloakId(cmd.keycloakId);
+    const identity = handle ? null : await this.identityAdmin.findById(cmd.keycloakId);
+    const login = handle ?? identity?.username ?? null;
+
+    if (!login) {
       // Пользователя нет в Keycloak (или он без логина) — пароля у него тоже нет.
       this.logger.warn(`reauth requested for unknown kc=${cmd.keycloakId.substring(0, 8)}...`);
       throw new InvalidCredentialsError();
@@ -47,7 +56,7 @@ export class RequestReauthUseCase implements UseCase<RequestReauthCommand, Reque
 
     let tokens: { refreshToken: string };
     try {
-      tokens = await this.idp.signIn(identity.username, cmd.password);
+      tokens = await this.idp.signIn(login, cmd.password);
     } catch (err) {
       this.logger.warn(
         `reauth failed for kc=${cmd.keycloakId.substring(0, 8)}...: ${(err as Error).message}`,

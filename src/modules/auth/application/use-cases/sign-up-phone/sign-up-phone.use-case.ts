@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
+import { generateLoginHandle } from '@shared/domain/login-handle';
 import {
   ProvisionedUser,
   USER_PROVISIONING,
@@ -60,7 +61,12 @@ export class SignUpPhoneUseCase implements UseCase<SignUpPhoneCommand, SignUpPho
     const firstName = cmd.firstName ?? DEFAULT_FIRST_NAME;
     const lastName = cmd.lastName ?? DEFAULT_LAST_NAME;
 
+    // Путь B (ADR-0017 ред.2): логин в Keycloak — стабильный handle, не телефон.
+    // Генерируем ДО создания учётки, чтобы `username` и shadow-запись не разошлись.
+    const handle = generateLoginHandle();
+
     const created = await this.identityAdmin.createPhoneUser({
+      username: handle,
       phone: cmd.phone,
       firstName,
       lastName,
@@ -70,14 +76,14 @@ export class SignUpPhoneUseCase implements UseCase<SignUpPhoneCommand, SignUpPho
       keycloakId: created.keycloakId,
       phone: cmd.phone,
       phoneVerified: true,
+      handle,
       firstName,
       lastName,
     });
 
     const tokens = await this.mint.mint({
-      // login_hint: Keycloak резолвит username/email, а username phone-пользователя
-      // — это сам номер (ADR-0015).
-      loginHint: cmd.phone,
+      // login_hint = handle: телефон в `login_hint` не уходит (PII), CIBA резолвит логин по username.
+      loginHint: handle,
       keycloakId: created.keycloakId,
       purpose: 'sign-up',
       phone: cmd.phone,

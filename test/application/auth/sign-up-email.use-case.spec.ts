@@ -52,6 +52,7 @@ describe('SignUpEmailUseCase', () => {
     );
 
     expect(identityAdmin.createEmailUser).toHaveBeenCalledWith({
+      username: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       email: 'new@example.com',
       password: 'sup3r-secret',
       firstName: null,
@@ -60,6 +61,7 @@ describe('SignUpEmailUseCase', () => {
     expect(users.ensureFromIdentity).toHaveBeenCalledWith({
       keycloakId: 'kc-1',
       email: 'new@example.com',
+      handle: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       firstName: null,
       lastName: null,
     });
@@ -71,6 +73,7 @@ describe('SignUpEmailUseCase', () => {
     await useCase.execute(new SignUpEmailCommand('new@example.com', 'pwd', true, 'Иван', 'Петров'));
 
     expect(identityAdmin.createEmailUser).toHaveBeenCalledWith({
+      username: expect.stringMatching(/^usr_[0-9a-f]{16}$/),
       email: 'new@example.com',
       password: 'pwd',
       firstName: 'Иван',

@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
+import {
+  LOGIN_HANDLE_RESOLVER,
+  LoginHandleResolver,
+} from '@shared/application/login-handle.interface';
 import { CONTACT_LOOKUP, ContactLookup } from '@shared/application/contact-lookup.interface';
 import {
   VERIFICATION_TOKEN_CONSUMER,
@@ -26,6 +30,7 @@ export class SignInPhoneUseCase implements UseCase<SignInPhoneCommand, TokenPair
     @Inject(VERIFICATION_TOKEN_CONSUMER)
     private readonly verification: VerificationTokenConsumer,
     @Inject(CONTACT_LOOKUP) private readonly contacts: ContactLookup,
+    @Inject(LOGIN_HANDLE_RESOLVER) private readonly handles: LoginHandleResolver,
     private readonly mint: UserTokenMintService,
   ) {}
 
@@ -39,8 +44,12 @@ export class SignInPhoneUseCase implements UseCase<SignInPhoneCommand, TokenPair
     const keycloakId = await this.contacts.findKeycloakIdByPhone(cmd.phone);
     if (!keycloakId) throw new InvalidCredentialsError();
 
+    // login_hint — handle (путь B, ADR-0017 ред.2): телефон в `login_hint` не уходит.
+    // Фолбэк на телефон — только для строк, созданных до политики (handle отсутствует).
+    const handle = await this.handles.byKeycloakId(keycloakId);
+
     return this.mint.mint({
-      loginHint: cmd.phone,
+      loginHint: handle ?? cmd.phone,
       keycloakId,
       purpose: 'sign-in',
       phone: cmd.phone,

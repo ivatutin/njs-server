@@ -1,5 +1,6 @@
 import { SignInUseCase } from '../../../src/modules/auth/application/use-cases/sign-in/sign-in.use-case';
 import { SignInCommand } from '../../../src/modules/auth/application/use-cases/sign-in/sign-in.command';
+import { LoginHandleResolver } from '../../../src/shared/application/login-handle.interface';
 import { IdentityProviderPort } from '../../../src/modules/auth/domain/ports/identity-provider.port';
 import { EventBus } from '../../../src/shared/application/event-bus.interface';
 
@@ -28,7 +29,12 @@ describe('SignInUseCase', () => {
       publishAll: jest.fn(),
       subscribe: jest.fn(),
     };
-    useCase = new SignInUseCase(idp, bus);
+    const handles = {
+      byPhone: jest.fn(),
+      byEmail: jest.fn().mockResolvedValue(null),
+      byKeycloakId: jest.fn(),
+    } as unknown as jest.Mocked<LoginHandleResolver>;
+    useCase = new SignInUseCase(idp, bus, handles);
   });
 
   it('returns token pair and publishes UserSignedInEvent', async () => {

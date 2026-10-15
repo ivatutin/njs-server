@@ -5,6 +5,7 @@ import { InvalidCredentialsError } from '../../../src/modules/auth/domain/errors
 import { PendingMintStore } from '../../../src/modules/auth/domain/ports/pending-mint-store.port';
 import { UserTokenIssuer } from '../../../src/modules/auth/domain/ports/user-token-issuer.port';
 import { ContactLookup } from '../../../src/shared/application/contact-lookup.interface';
+import { LoginHandleResolver } from '../../../src/shared/application/login-handle.interface';
 import { VerificationTokenConsumer } from '../../../src/shared/application/verification-token-consumer.interface';
 import { VerificationTokenExpiredError } from '../../../src/shared/domain/errors/verification-token-expired.error';
 import { VerificationTokenInvalidError } from '../../../src/shared/domain/errors/verification-token-invalid.error';
@@ -35,9 +36,15 @@ describe('SignInPhoneUseCase', () => {
       completeBackchannelAuth: jest.fn(),
     } as unknown as jest.Mocked<UserTokenIssuer>;
     pendingMints = { save: jest.fn(), consume: jest.fn() } as unknown as jest.Mocked<PendingMintStore>;
+    const handles = {
+      byPhone: jest.fn(),
+      byEmail: jest.fn(),
+      byKeycloakId: jest.fn().mockResolvedValue('usr_test_handle'),
+    } as unknown as jest.Mocked<LoginHandleResolver>;
     useCase = new SignInPhoneUseCase(
       verification,
       contacts,
+      handles,
       new UserTokenMintService(issuer, pendingMints),
     );
   });
@@ -74,7 +81,7 @@ describe('SignInPhoneUseCase', () => {
     expect(contacts.findKeycloakIdByPhone).toHaveBeenCalledWith(PHONE);
     expect(pendingMints.save).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ loginHint: PHONE, keycloakId: 'kc-1', purpose: 'sign-in' }),
+      expect.objectContaining({ loginHint: 'usr_test_handle', keycloakId: 'kc-1', purpose: 'sign-in' }),
     );
     expect(tokens).toEqual({ accessToken: 'at', refreshToken: 'rt', expiresIn: 300 });
   });
