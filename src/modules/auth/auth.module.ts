@@ -7,7 +7,9 @@ import { TOKEN_STORE } from './domain/ports/token-store.port';
 import { USER_TOKEN_ISSUER } from './domain/ports/user-token-issuer.port';
 import { PENDING_MINT_STORE } from './domain/ports/pending-mint-store.port';
 import { REAUTH_TOKEN_STORE } from './domain/ports/reauth-token-store.port';
+import { REAUTH_ATTEMPT_LIMITER } from './domain/ports/reauth-attempt-limiter.port';
 import { RedisReauthTokenStore } from './infrastructure/redis/redis-reauth-token.store';
+import { RedisReauthAttemptLimiter } from './infrastructure/rate-limit/redis-reauth-attempt.limiter';
 import { RequestReauthUseCase } from './application/use-cases/request-reauth/request-reauth.use-case';
 import { UserTokenMintService } from './application/services/user-token-mint.service';
 import { KeycloakCibaAdapter } from './infrastructure/keycloak/keycloak-ciba.adapter';
@@ -56,6 +58,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     UserTokenMintService,
     // Reauth-токены для опасных операций (Phase 4)
     { provide: REAUTH_TOKEN_STORE, useClass: RedisReauthTokenStore },
+    // Brute-force защита reauth: 5 неудач / 15 минут на пользователя (ADR-0018, решение координатора)
+    { provide: REAUTH_ATTEMPT_LIMITER, useClass: RedisReauthAttemptLimiter },
     ReauthTokenGuard,
 
     // Use cases
