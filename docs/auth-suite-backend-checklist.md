@@ -302,8 +302,10 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 > `needsContactCompletion`, формат данных VK/Yandex, состав MVP). Механизм — `docs/adr/0016-social-login-providers.md`
 > (**Proposed**). Ниже — исходный список из чек-листа.
 >
-> **Предусловия в dev-реестре (проверено 14.10.2026):** IdP не настроено ни одного, браузерного клиента для фронта нет
-> (есть только `app-backend` и служебные) → нужны публичный клиент `app-web` с PKCE + настройка IdP (для dev — Google/GitHub).
+> **Спайк brokered-флоу пройден (14.10.2026):** `docs/research/social-login-broker-spike.md` — публичный клиент
+> `app-web` (PKCE `S256`) и IdP `stub` (stub-реалм `idp-stub`) заведены в dev; код обменян **без секрета**, повторный
+> вход попадает в того же пользователя. Ограничения: split-horizon адресов IdP (публичные vs внутренние) и обязательный
+> `Review Profile` в стоковом flow. В проде вместо `stub` — реальные провайдеры и redirect URI фронта.
 
 - [ ] `GET /auth/providers` → `ProviderDescriptor[]`
 - [ ] `POST /auth/oidc/callback` — `{ code, state, codeVerifier, redirectUri }` → `{ user, tokens, needsContactCompletion? }` (Keycloak-brokered: Google/GitHub/VK/Yandex если Generic OIDC заведётся)

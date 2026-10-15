@@ -1,8 +1,9 @@
 # ADR 0016: Вход через соц-провайдеров — brokered OIDC в Keycloak + custom-провайдеры
 
 - **Дата:** 2026-10-14
-- **Статус:** **Proposed** — механизм рекомендуем и просим подтвердить вместе с контракт-предложением
-  `docs/contract-proposals/auth-v1.3-social.md` (там же 6 открытых вопросов). После ответа координатора — Accepted.
+- **Статус:** **Accepted** (бэкенд-часть): механизм подтверждён живым спайком, см. раздел «Спайк на живом стеке»
+  и `docs/research/social-login-broker-spike.md`. Форма контракта — на рассмотрении координатора
+  (`docs/contract-proposals/auth-v1.3-social.md`).
 - **Связано:** ADR-0004 (Keycloak как IdP), ADR-0015 (CIBA), чек-лист Phase 3
 
 ## Контекст
@@ -51,18 +52,39 @@ Phase 3 добавляет вход через VK ID / Yandex / Telegram плю�
 привязать провайдера явно. Автолинковка по email/phone у провайдера — классический вектор захвата аккаунта
 (email у некоторых провайдеров не подтверждён).
 
-## Проверено на живом стеке (14.10.2026, dev-реестр `app`)
+## Спайк на живом стеке (14.10.2026, Keycloak 26.8.0)
 
-```
-GET /admin/realms/app/identity-provider/instances → []            ← ни одного IdP не настроено
-GET /admin/realms/app/clients → account, account-console, admin-cli, app-backend,
-                                broker, realm-management, security-admin-console
-                                ← браузерного клиента для фронта нет
-```
+Стенд поднят **без внешних провайдеров**: stub-OIDC, ходящий сам на себя (реалм `idp-stub`), публичный клиент
+`app-web` с PKCE `S256`, IdP `stub` в реалме `app`. Разбор целиком — `docs/research/social-login-broker-spike.md`.
 
-Следствие: предусловия Phase 3 — (а) создать публичный клиент `app-web` с PKCE и redirect URIs фронта,
-(б) настроить IdP в реалме (для dev достаточно Google/GitHub), (в) проверить, заводится ли VK/Yandex как Generic OIDC.
-Эти три пункта — инфраструктурная часть Phase 3, кода не требуют.
+**Результат: механизм подтверждён end-to-end.** Цепочка из 6 хопов (`/auth` → broker login → логин IdP → broker
+endpoint → `first-broker-login` → наш `redirect_uri` с кодом) завершилась обменом кода
+`grant_type=authorization_code&client_id=app-web&code_verifier=…` **без `client_secret`** → `access_token` +
+`refresh_token` + `id_token`, `expires_in: 300`. Значит тела `POST /auth/oidc/callback` достаточно, и секрет в
+брокеренном пути не нужен.
+
+Что ещё подтвердилось:
+
+- пользователь в реалме создаётся автоматически (`syncMode=IMPORT`), email приходит подтверждённым (`trustEmail`),
+  `firstName`/`lastName` мапятся из профиля IdP → shadow-БД заполняется тем же способом, что в email-flow;
+- запись federated identity (`identityProvider` + `userId` = subject провайдера) — **та же структура**, которую для
+  custom-пути создаёт `addFederatedIdentity`; дублировать её в своей БД не нужно;
+- повторный вход отдаёт код сразу (SSO) и попадает в **того же** пользователя — второй аккаунт не создаётся.
+
+Обнаруженные при спайке ограничения (подробно — в разборе):
+
+1. **Split-horizon для IdP:** `authorizationUrl` и `issuer` — публичные (`http://localhost:8088/…`, их видит
+   браузер), а `tokenUrl`/`userInfoUrl`/`jwksUrl` — внутренние (`http://keycloak:8080/…`, их зовёт контейнер).
+   Первая попытка упала `Connect to localhost:8088 → Connection refused` — та же ловушка, что в ADR-0013.
+2. **Review Profile** в стоковом `first broker login` показывается на **каждом** первом brokered-входе; в dev-стенде
+   экзекуция выключена. Оставлять ли этот шаг как UX — вопрос продукта (вопрос №7 предложения v1.3).
+3. Клиент, созданный через Admin API, **игнорирует переданный `secret`** (Keycloak генерирует свой) — реальное
+   значение только из `GET …/clients/{id}/client-secret`.
+
+Исходное состояние контура (для истории): на момент начала Phase 3 в реалме `app` было **0 identity providers** и
+**не было браузерного клиента** — только `app-backend` (confidential) и служебные (`account`, `account-console`,
+`admin-cli`, `broker`, `realm-management`, `security-admin-console`). Спайк добавил в dev `app-web` + IdP `stub`;
+в проде вместо stub нужны реальные провайдеры и redirect URI фронта.
 
 ## Последствия
 
