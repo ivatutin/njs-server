@@ -19,6 +19,7 @@ import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import keycloakConfig from './config/keycloak.config';
 import smsruConfig from './config/smsru.config';
+import dashamailConfig from './config/dashamail.config';
 
 @Module({
   controllers: [AppController],
@@ -27,7 +28,7 @@ import smsruConfig from './config/smsru.config';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      load: [appConfig, databaseConfig, redisConfig, keycloakConfig, smsruConfig],
+      load: [appConfig, databaseConfig, redisConfig, keycloakConfig, smsruConfig, dashamailConfig],
     }),
     AppLoggerModule,
     PrismaModule,

@@ -12,6 +12,7 @@ import { OTP_HASHER } from './domain/ports/otp-hasher.port';
 import { OTP_RATE_LIMITER } from './domain/ports/otp-rate-limiter.port';
 import { PHONE_CALL_PROVIDER, PhoneCallProvider } from './domain/ports/phone-call-provider.port';
 import { SMS_SENDER } from './domain/ports/sms-sender.port';
+import { EMAIL_SENDER, EmailSender } from './domain/ports/email-sender.port';
 import { VERIFICATION_TOKEN_ISSUER } from './domain/ports/verification-token.port';
 import { ConsolePhoneCallProvider } from './infrastructure/call/console-phone-call.provider';
 import { SmsRuCallcheckProvider } from './infrastructure/call/smsru-callcheck.provider';
@@ -19,6 +20,8 @@ import { Argon2OtpHasher } from './infrastructure/hashing/argon2-otp.hasher';
 import { RedisOtpChallengeStore } from './infrastructure/persistence/redis-otp-challenge.store';
 import { RedisOtpRateLimiter } from './infrastructure/rate-limit/redis-otp.rate-limiter';
 import { ConsoleSmsSender } from './infrastructure/sms/console-sms.sender';
+import { ConsoleEmailSender } from './infrastructure/email/console-email.sender';
+import { DashaMailEmailSender } from './infrastructure/email/dashamail-email.sender';
 import { OtpVerificationTokenConsumer } from './infrastructure/tokens/otp-verification-token.consumer';
 import { RedisVerificationTokenIssuer } from './infrastructure/tokens/redis-verification-token.issuer';
 import { OtpController } from './interfaces/http/otp.controller';
@@ -69,6 +72,18 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
         smsru: SmsRuCallcheckProvider,
         dev: ConsolePhoneCallProvider,
       ): PhoneCallProvider => (config.get<boolean>('smsru.callcheckEnabled') ? smsru : dev),
+    },
+    // Email-канал (ADR-0019): боевой DashaMail HTTP API либо dev-лог; в проде без ключа — отказ (503)
+    ConsoleEmailSender,
+    DashaMailEmailSender,
+    {
+      provide: EMAIL_SENDER,
+      inject: [ConfigService, DashaMailEmailSender, ConsoleEmailSender],
+      useFactory: (
+        config: ConfigService,
+        dashamail: DashaMailEmailSender,
+        dev: ConsoleEmailSender,
+      ): EmailSender => (config.get<string>('dashamail.apiKey') ? dashamail : dev),
     },
   ],
   exports: [VERIFICATION_TOKEN_CONSUMER],

@@ -27,6 +27,11 @@ const envSchema = z.object({
   SMSRU_CALLCHECK_ENABLED: z.enum(['true', 'false']).optional().default('false'),
   SMSRU_API_BASE_URL: z.string().url().optional().default('https://sms.ru'),
   SMSRU_DEV_CONFIRM_AFTER_SECONDS: z.coerce.number().int().nonnegative().default(15),
+  // Транзакционная почта (DashaMail, ADR-0019). Пусто → dev-лог, а в production канал отказывает (503).
+  DASHAMAIL_API_KEY: z.string().optional().default(''),
+  DASHAMAIL_FROM_EMAIL: z.string().optional().default(''),
+  DASHAMAIL_FROM_NAME: z.string().optional().default('Video Service'),
+  DASHAMAIL_API_BASE_URL: z.string().url().optional().default('https://api.dashamail.com'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

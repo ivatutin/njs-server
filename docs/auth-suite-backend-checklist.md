@@ -485,6 +485,23 @@ POST /auth/sign-in/phone (OTP → CIBA)  → 200 { expires_in: 300 }; GET /users
 **Прогресс реализации трио:** срез 1 — доменный метод `User.applyVerifiedContactChange` (+7 тестов, коммит `5bfbd57`);
 дальше — shared-порты `OTP_CHALLENGES`/`USER_CONTACTS`, `changeToken`-стор в Redis, три use-case, HTTP-слой, приёмка живьём.
 
+## Email-канал (ADR-0019, решение E1 — DashaMail HTTP)
+
+- [x] `EMAIL_SENDER` + `ConsoleEmailSender` (dev/CI, код в лог) + **fail-closed `503`** в проде без ключа
+      (поведение как у `ConsolePhoneCallProvider`); тесты `test/infrastructure/console-email.sender.spec.ts`
+- [x] адаптер `DashaMailEmailSender`: **свой `message_id`**, **`X-Dashamail-Unsub-Ignore: 1`**, таймаут 5 с и 3 попытки
+      на сеть/5xx (4xx без ретрая), маппинг отказов провайдера (`code 34` — домен не подтверждён, `673` — отписка)
+      в `provider-error`; адрес получателя в логи не пишем (`maskEmail`); тесты `dashamail-email.sender.spec.ts`
+- [ ] **прод:** домен отправителя подтверждён (DKIM + SPF), `DASHAMAIL_API_KEY`, webhook минимум на `Bounced`/`dropped`
+      (последний статус хранить по своему `message_id`)
+- [ ] realm SMTP Keycloak → DashaMail SMTP (проверить их SMTP-API: тогда один провайдер, один DKIM-домен, один прод-пункт)
+- [x] ADR-0019 «Канал доставки email» (`docs/adr/0019-email-delivery-channel.md`)
+- [x] подтверждён штатный путь перевыпуска кода: **`cancel` → `request`** (повторный `request` при активном change → `409
+      ContactChangeAlreadyPending`); `OTP_CHALLENGES.verify` работает по `(target, purpose)`, поэтому перевыпуск челленджа
+      не ломает начатый change; фронту нужен **явный шаг «отменить и начать заново»** в UI + отсчёт `retryAfterSeconds`
+- [ ] сверить поля тела запроса DashaMail с их документацией при выдаче ключа (использованы `message_id`, `from_email`,
+      `from_name`, `to`, `subject`, `text`; документация из нашей сети недоступна — `401/404`)
+
 ---
 
 ## Итог по объёму

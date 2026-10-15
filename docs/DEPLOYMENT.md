@@ -297,6 +297,20 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    `username=<email>` и паролем пользователя отдаёт токены, а не `invalid_grant`.
    Профиль: `email` редактируем админом (у роли admin есть `edit`), `phoneNumber` — нестандартный атрибут и редактируется
    благодаря `unmanagedAttributePolicy = ENABLED` (пункт 8). Без этого смена контакта в `contact-change` не запишется.
+11. **Почта (ADR-0019): DashaMail.** Транзакционные письма с OTP-кодами (email-ветка `contact-change`) идут через
+   DashaMail HTTP API. Прод-шаги:
+   - домен отправителя добавлен и подтверждён (**DKIM + SPF**): иначе провайдер письмо не отправит, а журнал вернёт `code 34`;
+   - `DASHAMAIL_API_KEY` и `DASHAMAIL_FROM_EMAIL` (опционально `DASHAMAIL_FROM_NAME`, `DASHAMAIL_API_BASE_URL`) в `.env`;
+     **без ключа email-ветка `contact-change` отвечает `503`** и контакт не меняется (fail-closed);
+   - **webhook провайдера минимум на `Bounced`/`dropped`** — «адрес отписан/пожаловался», «ящик переполнен»: хранить
+     последний статус по нашему `message_id`, адрес получателя в логи не писать;
+   - **realm SMTP Keycloak → DashaMail SMTP** (у провайдера есть SMTP API): тогда verify-email и сброс пароля идут тем же
+     путём — один провайдер, один DKIM-домен, один прод-пункт;
+   - комплаенс: адреса пользователей уходят третьей стороне (DashaMail — ФЗ-152, данные в РФ) → добавить в список
+     обработчиков ПДн.
+
+   Проверка: `POST /users/me/contact-change/request { "channel": "email", "newValue": "<свой ящик>" }` → письмо с кодом;
+   при пустом `DASHAMAIL_API_KEY` в проде — `503`, контакт не изменён.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

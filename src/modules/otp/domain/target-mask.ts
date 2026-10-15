@@ -18,3 +18,18 @@ export function maskPhone(e164: string): string {
 
   return `+${prefix} (***) ***-${lastFour.slice(0, 2)}-${lastFour.slice(2)}`;
 }
+
+/**
+ * Маскирование email для логов: домен остаётся видимым (по нему видно, чей это
+ * почтовый провайдер), локальная часть — первая буква и `***`.
+ *
+ * Полный адрес получателя не должен попадать ни в ответы, ни в логи (PII, ADR-0019).
+ */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return '***';
+
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  return `${local.slice(0, 1)}***${domain}`;
+}
