@@ -331,6 +331,19 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 Требует Phase 0 (OTP) + reauth-инфру.
 
+> **Реализация трио `contact-change` не начинается до решения (ревью координатора 15.10.2026, ADR-0017 ред. 2):**
+> **B1** — выбор политики `username` (путь **A**: разрешить переименование в реалме; путь **B**: стабильный handle —
+> рекомендация бэкенда); **B2** — проектирование частичного сбоя KC ↔ shadow (ре-чек в транзакции, идемпотентность,
+> компенсация + алерт, drift-детектор). **B3** — отзыв уже выданных access-токенов — вынесен в **ADR-0018**
+> и подтверждён фактом.
+>
+> Живые проверки (15.10.2026, Keycloak 26.8.0): админ-переименование при текущем конфиге **невозможно**
+> (`400 error-user-attribute-read-only`, `editUsernameAllowed=false`), но работает при `editUsernameAllowed=true`
+> + `username.permissions.edit=['admin']` (проверено: rename 204, вход по новому логину 300); login по **email**
+> работает даже когда `username` — не email (rename для email-смены не нужен); email-коллизия → `409`, а телефон
+> (атрибут) Keycloak **не** проверяет — уникальность держит наша БД; после `logout` старый access-токен жив (`/users/me`
+> → 200), refresh → `401`.
+
 - [x] `POST /auth/reauth` — protected — `{ password }` → `{ reauthToken, expiresAt }` (one-shot, ~5 мин, в Redis)
   - пароль проверяем password-grant'ом у Keycloak, а созданную им сессию **сразу гасим** (reauth — не вход)
   - `username` берём из админ-API (`findById`): у phone-пользователя в токене нет `email`, а логин у него — телефон
