@@ -38,6 +38,8 @@ import { ValidateTokenUseCase } from './application/use-cases/validate-token/val
 import { SignUpEmailUseCase } from './application/use-cases/sign-up-email/sign-up-email.use-case';
 import { ResendVerifyEmailUseCase } from './application/use-cases/resend-verify-email/resend-verify-email.use-case';
 import { ForgotPasswordUseCase } from './application/use-cases/forgot-password/forgot-password.use-case';
+import { RequestContactChangeUseCase } from './application/use-cases/request-contact-change/request-contact-change.use-case';
+import { VerifyContactChangeUseCase } from './application/use-cases/verify-contact-change/verify-contact-change.use-case';
 import { RedisPasswordResetRateLimiter } from './infrastructure/rate-limit/redis-password-reset.rate-limiter';
 import { AuthController } from './interfaces/http/auth.controller';
 import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
@@ -74,6 +76,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     SignUpEmailUseCase,
     ResendVerifyEmailUseCase,
     ForgotPasswordUseCase,
+    RequestContactChangeUseCase,
+    VerifyContactChangeUseCase,
     SignUpPhoneUseCase,
     SignInPhoneUseCase,
     HandleCibaChannelRequestUseCase,
