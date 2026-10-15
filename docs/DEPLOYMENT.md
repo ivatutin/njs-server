@@ -259,6 +259,23 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    (`KC_SPI_CIBA_AUTH_CHANNEL__CIBA_HTTP_AUTH_CHANNEL__HTTP_AUTHENTICATION_CHANNEL_URI`),
    по умолчанию — `http://app-backend:${APP_PORT:-3001}/${APP_PATH_PREFIX:-api/v1}/internal/ciba/channel`.
    Эндпоинт внутренний: наружу его публиковать не нужно (доступен только из сети compose).
+6. Для соц-входа (Phase 3, ADR-0016) нужны два объекта:
+   - **публичный клиент `app-web`**: Client authentication **off**, Standard flow on, Valid redirect URIs = redirect URI
+     фронта, Advanced → Proof Key for Code Exchange = **S256**. Им фронт идёт в authorization endpoint, а бэкенд
+     обменивает код (`client_id` + `code_verifier`, секрета у публичного клиента нет);
+   - **identity provider** (Identity providers → Add → Google/GitHub/…, либо Generic OIDC). Для OIDC-провайдера адреса
+     задаются **по-разному для браузера и для контейнера**, иначе Keycloak падает с
+     `Connect to localhost:8088 refused` (проверено спайком, `docs/research/social-login-broker-spike.md`):
+
+     | Поле IdP | Значение | Почему |
+     | --- | --- | --- |
+     | `authorizationUrl` | публичный `https://<KC_HOSTNAME>/realms/<realm>/…` | редирект делает **браузер** |
+     | `tokenUrl`, `userInfoUrl`, `jwksUrl` | внутренний `http://keycloak:8080/realms/<realm>/…` | вызовы делает **контейнер** Keycloak |
+     | `issuer` | публичный `https://<KC_HOSTNAME>/realms/<realm>` | должен совпасть с `iss` в id-token |
+
+   - Отдельно решить судьбу шага **Review Profile** в flow `first broker login`: в стоковом виде он спрашивает профиль
+     на каждом первом brokered-входе. Выключить (импорт молча) или оставить как UX — вопрос продукта (№7 в
+     `docs/contract-proposals/auth-v1.3-social.md`).
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash
