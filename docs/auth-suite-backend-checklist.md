@@ -297,10 +297,16 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 ## 🟢 Phase 3 — Social (VK ID / Yandex / Telegram)
 
-> **Контракт-предложение готово и ждёт координатора:** `docs/contract-proposals/auth-v1.3-social.md` (**Proposed**) —
-> 3 эндпоинта, 2 кода (`SocialAuthFailed`, `ProviderAccountLinked`) и 6 открытых вопросов (state/PKCE, политика линковки,
-> `needsContactCompletion`, формат данных VK/Yandex, состав MVP). Механизм — `docs/adr/0016-social-login-providers.md`
-> (**Proposed**). Ниже — исходный список из чек-листа.
+> **v1.3 принят координатором (15.10.2026).** Заморожены 3 эндпоинта: `GET /auth/providers`,
+> `POST /auth/oidc/callback`, `POST /auth/providers/:id/callback` c **`:id = 'telegram-widget'`**;
+> `telegram-bot` / `vkid` / `yandex` — **зарезервированы** (добавляются отдельными предложениями, аддитивно).
+> Коды `SocialAuthFailed` (422) и `ProviderAccountLinked` (409) внесены в контракт.
+> Решения координатора: автопривязка провайдера по совпавшему контакту **запрещена** → `409 ProviderAccountLinked`
+> либо `409 ContactAlreadyExists`; неполный профиль → обычные токены + `needsContactCompletion`, **статус аккаунта
+> `pending_verification`** (новых scopes нет); `state` и PKCE — **клиентские**, доказательство для бэкенда — успешный
+> обмен `code`. **Реализация — вне скоупа Auth v1** (решение владельца) → в этом репозитории не начинается.
+> Механизм подтверждён спайком: `docs/adr/0016-social-login-providers.md` + `docs/research/social-login-broker-spike.md`.
+> Ниже — исходный список из чек-листа (для истории).
 >
 > **Спайк brokered-флоу пройден (14.10.2026):** `docs/research/social-login-broker-spike.md` — публичный клиент
 > `app-web` (PKCE `S256`) и IdP `stub` (stub-реалм `idp-stub`) заведены в dev; код обменян **без секрета**, повторный

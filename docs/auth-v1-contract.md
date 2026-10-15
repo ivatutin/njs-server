@@ -1,4 +1,4 @@
-# Контракт Auth v1 — заморозка (v1.2, 14.10.2026)
+# Контракт Auth v1 — заморозка (v1.3, 14.10.2026)
 
 ## Принцип
 
@@ -9,7 +9,7 @@
 - `njs-server/docs/auth-suite-backend-checklist.md` — backend-обязанности.
 - `vue-app-base/src/shared/api/error-codes.ts` — реестр кодов ошибок.
 
-## Что заморожено (v1.2)
+## Что заморожено (v1.3)
 
 - **Пути и методы** эндпоинтов Phase 0–4.
 - **Формы запроса/ответа (DTO)** — как в спецификациях.
@@ -19,6 +19,17 @@
   обратный звонок (`POST /auth/phone/call` + `GET /auth/phone/call/:challengeId`) — оба выдают
   **один и тот же** `verificationToken`, который затем предъявляется в существующие
   `POST /auth/sign-up/phone` / `POST /auth/sign-in/phone` без изменений.
+- **Социальный вход (v1.3):** `GET /auth/providers`, `POST /auth/oidc/callback`,
+  `POST /auth/providers/:id/callback` (`:id = 'telegram-widget'`; `telegram-bot` / `vkid` / `yandex` —
+  **зарезервированы**, добавляются аддитивно отдельными предложениями).
+- **Политика линковки (v1.3):** автоматическая привязка провайдера к существующему аккаунту по совпавшему
+  контакту **запрещена** → `409 ProviderAccountLinked` (identity уже привязана) либо `409 ContactAlreadyExists`
+  (контакт занят другим аккаунтом). Пользователь входит прежним способом; своего эндпоинта привязки в v1.3 нет.
+- **Неполный социальный профиль (v1.3):** пользователь получает обычные токены + `needsContactCompletion: true`,
+  но **статус аккаунта = `pending_verification`** — дальше работает существующая машина состояний фронта
+  (`/system/account-status`). Новые scopes **не вводятся**.
+- **`state` / PKCE (v1.3):** `codeVerifier` и `state` — **клиентские**; фронт обязан сверить `state` со своим
+  сохранённым значением **до** вызова `POST /auth/oidc/callback`. Доказательство для бэкенда — сам успешный обмен `code`.
 
 ## Реестр кодов ошибок (сцепление фронт ↔ бэк)
 
@@ -36,6 +47,8 @@
 | `InvalidToken` ⟵ *v1.1* | невалидный / просроченный / отозванный access или refresh (401) |
 | `InvalidContacts` ⟵ *v1.1* | нарушен инвариант контактов: нет ни email, ни phone; прямая смена verified-контакта (422) |
 | `UserNotFound` ⟵ *v1.1* | пользователь не найден (404; в основном админские операции) |
+| `SocialAuthFailed` ⟵ *v1.3* | доказательство провайдера не прошло: просроченный `auth_date`, битая подпись, отказ обмена `code` (422) |
+| `ProviderAccountLinked` ⟵ *v1.3* | federated identity уже привязана к другому нашему аккаунту (409) |
 
 > Коды, помеченные *v1.1*, уже реализованы в бэкенде, но отсутствовали в реестре фронта — добавлены аддитивно.
 
@@ -93,3 +106,4 @@
 | v1.0 | 02.10.2026 | Заморозка: коды из спеки auth-suite |
 | v1.1 | 02.10.2026 | **Аддитивно** добавлены 3 уже реализованных кода: `InvalidToken`, `InvalidContacts`, `UserNotFound`. Требуется добавить их в фронтовый реестр (`ErrorCode` + `ERROR_MESSAGES`) |
 | v1.2 | 14.10.2026 | **Аддитивно**: второй канал подтверждения телефона — `POST /auth/phone/call`, `GET /auth/phone/call/:challengeId`; **новых кодов нет** (терминальные состояния — `status` при 200). Формы `TokenPair` / `verificationToken` и существующие коды не меняются |
+| v1.3 | 14.10.2026 | **Аддитивно (сужено)**: социальный вход — 3 эндпоинта (`GET /auth/providers`, `POST /auth/oidc/callback`, `POST /auth/providers/:id/callback`, `:id='telegram-widget'`), коды `SocialAuthFailed` (422) и `ProviderAccountLinked` (409); политика «без автопривязки»; неполный профиль → `pending_verification`. `telegram-bot` / `vkid` / `yandex` зарезервированы. **Реализация — вне скоупа Auth v1** (решение владельца) |
