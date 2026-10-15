@@ -290,6 +290,8 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    переименований в реалме нет.
    Проверки: `PUT /admin/realms/<realm>/users/<id>` с новым `username` → `400 error-user-attribute-read-only`;
    `GET /admin/realms/<realm>/users?username=<handle>` находит пользователя, а запрос по телефону — нет.
+   **Прод-реалм сидируется отдельно и не наследует dev-данные:** миграций логинов/контактов прод не касается, поэтому
+   оставшийся в dev legacy-пользователь `test@test.com` (логин = email, стиль A) — осознанное исключение и в прод не поедет.
 10. **`loginWithEmailAllowed = ON`** (`Realm settings → Login → Email as username`-семантика): вход по email должен
    резолвить пользователя по **атрибуту** `email`, потому что `username` теперь handle. Проверка: password-grant с
    `username=<email>` и паролем пользователя отдаёт токены, а не `invalid_grant`.
