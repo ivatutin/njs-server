@@ -5,14 +5,16 @@ import { OtpPurpose } from '../../domain/otp-policy';
 import { EmailSendResult, EmailSender } from '../../domain/ports/email-sender.port';
 
 /**
- * Ответ провайдера. Наш `message_id` уже передан в запросе, поэтому чужой `id`
- * не храним — он нужен только адаптеру для логов корреляции.
+ * Ответ провайдера (подтверждено документацией DashaMail 15.10.2026):
+ * `{ response: { msg: { err_code, text }, data: { transaction_id } } }`.
+ * `err_code = 0` — письмо принято; `data.transaction_id` — эхо нашего `message_id`
+ * (свой id передаём мы, поэтому чужой не храним).
  */
 interface TransactionalMessageResponse {
-  id?: number | string;
-  code?: number;
-  message?: string;
-  error?: { code?: number; message?: string };
+  response?: {
+    msg?: { err_code?: number; text?: string };
+    data?: { transaction_id?: string };
+  };
 }
 
 function subjectFor(purpose: OtpPurpose): string {
@@ -26,6 +28,20 @@ function subjectFor(purpose: OtpPurpose): string {
     default:
       return 'Код подтверждения';
   }
+}
+
+/**
+ * Текст письма. В письмо не подставляются данные пользователя — только код и
+ * фиксированный текст (HTML собираем сами, инъекции взяться неоткуда).
+ */
+function buildBodies(purpose: OtpPurpose, code: string): { message: string; plain_text: string } {
+  const intro = subjectFor(purpose);
+  const tail = 'Код действует 5 минут. Если вы не запрашивали смену — просто проигнорируйте письмо.';
+
+  return {
+    message: `<p>${intro}</p><p>Ваш код: <b>${code}</b></p><p>${tail}</p>`,
+    plain_text: `${intro}\n\nВаш код: ${code}\n${tail}`,
+  };
 }
 
 function describe(cause: unknown): string {
@@ -80,13 +96,16 @@ export class DashaMailEmailSender implements EmailSender {
       return { accepted: false, reason: 'not-configured' };
     }
 
+    const bodies = buildBodies(params.purpose, params.code);
     const body = {
       message_id: params.messageId,
       from_email: this.fromEmail,
       from_name: this.fromName,
       to: params.target,
       subject: subjectFor(params.purpose),
-      text: `Ваш код подтверждения: ${params.code}. Код действует 5 минут.`,
+      // Провайдер требует HTML-версию (`message`) + plain-text (`plain_text`).
+      message: bodies.message,
+      plain_text: bodies.plain_text,
     };
 
     for (let attempt = 1; attempt <= DashaMailEmailSender.MAX_ATTEMPTS; attempt += 1) {
@@ -105,11 +124,20 @@ export class DashaMailEmailSender implements EmailSender {
           },
         );
 
-        const providerCode = data.code ?? data.error?.code;
-        if (providerCode !== undefined && providerCode !== 0) {
+        const errCode = data.response?.msg?.err_code;
+
+        // Незнакомая форма ответа — тоже отказ: иначе «успех» будет ложным и код не уедет.
+        if (errCode === undefined) {
+          this.logger.error(
+            `dashamail returned an unexpected response shape message_id=${params.messageId}`,
+          );
+          return { accepted: false, reason: 'provider-error' };
+        }
+
+        if (errCode !== 0) {
           // 34 — домен отправителя не подтверждён (DKIM/SPF), 673 — адрес отписан/пожаловался.
           this.logger.error(
-            `dashamail rejected message_id=${params.messageId}: code=${providerCode} ${data.message ?? data.error?.message ?? ''}`,
+            `dashamail rejected message_id=${params.messageId}: err_code=${errCode} ${data.response?.msg?.text ?? ''}`,
           );
           return { accepted: false, reason: 'provider-error' };
         }

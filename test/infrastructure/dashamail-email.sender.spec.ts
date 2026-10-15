@@ -44,8 +44,10 @@ describe('DashaMailEmailSender (ADR-0019)', () => {
     );
   });
 
-  it('передаёт свой message_id и заголовок X-Dashamail-Unsub-Ignore (служебное письмо)', async () => {
-    mockedPost.mockResolvedValue({ data: { id: 'provider-1' } });
+  it('передаёт свой message_id, HTML+plain-версии и заголовок X-Dashamail-Unsub-Ignore', async () => {
+    mockedPost.mockResolvedValue({
+      data: { response: { msg: { err_code: 0, text: 'OK' }, data: { transaction_id: 'msg-1' } } },
+    });
 
     const result = await build().send(sendParams());
 
@@ -56,6 +58,9 @@ describe('DashaMailEmailSender (ADR-0019)', () => {
         message_id: 'msg-1',
         from_email: 'noreply@example.com',
         to: 'new@example.com',
+        subject: 'Подтверждение нового контакта',
+        message: expect.stringContaining('123456'),
+        plain_text: expect.stringContaining('123456'),
       }),
       expect.objectContaining({
         timeout: expect.any(Number),
@@ -75,7 +80,18 @@ describe('DashaMailEmailSender (ADR-0019)', () => {
   });
 
   it('мапит отказ провайдера (не подтверждён домен / адрес отписан) без ретраев', async () => {
-    mockedPost.mockResolvedValue({ data: { code: 34, message: 'domain is not verified' } });
+    mockedPost.mockResolvedValue({
+      data: { response: { msg: { err_code: 34, text: 'domain is not verified' } } },
+    });
+
+    const result = await build().send(sendParams());
+
+    expect(result).toEqual({ accepted: false, reason: 'provider-error' });
+    expect(mockedPost).toHaveBeenCalledTimes(1);
+  });
+
+  it('незнакомая форма ответа — тоже отказ (ложный успех недопустим)', async () => {
+    mockedPost.mockResolvedValue({ data: { id: 'provider-1' } });
 
     const result = await build().send(sendParams());
 
@@ -95,7 +111,9 @@ describe('DashaMailEmailSender (ADR-0019)', () => {
   it('успевает со второй попытки', async () => {
     mockedPost
       .mockRejectedValueOnce(axiosError(502))
-      .mockResolvedValueOnce({ data: { id: 'provider-2' } });
+      .mockResolvedValueOnce({
+        data: { response: { msg: { err_code: 0, text: 'OK' } } },
+      });
 
     const result = await build().send(sendParams());
 

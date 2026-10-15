@@ -30,6 +30,11 @@ Keycloak (verify-email → Mailpit в dev, SMTP реалма в проде). А�
 
 1. **Свой `message_id`** в запросе — корреляция с записью `contact-change` и идемпотентность на стороне провайдера.
    Чужие `transaction_id` не храним.
+   **Форма запроса/ответа (подтверждена документацией 15.10.2026):** тело — `message_id`, `from_email`, `from_name`,
+   `to`, `subject`, `message` (**HTML**), `plain_text`; ответ — `{ response: { msg: { err_code, text },
+   data: { transaction_id } } }`, где `err_code = 0` — письмо принято, а `data.transaction_id` — эхо нашего
+   `message_id`. **Незнакомая форма ответа трактуется как отказ**: иначе «успех» был бы ложным (код не уедет,
+   а `request` вернёт 200).
 2. **Заголовок `X-Dashamail-Unsub-Ignore: 1`** — обязателен. Иначе адрес, который «отписался или пожаловался», тихо
    не получит письмо: запрос выглядит успешным, письмо получает `Bounced` (код 673) и событие `dropped`.
    OTP — служебное письмо, человек обязан его получить.
@@ -72,5 +77,5 @@ Cooldown 60 с на target (`OtpRateLimited` с `retryAfterSeconds`) фронт 
 - Тесты: `test/infrastructure/{dashamail,console}-email.sender.spec.ts` — свой `message_id`, `X-Dashamail-Unsub-Ignore`,
   ретраи 5xx (3 попытки), отсутствие ретрая на 4xx, маппинг `code 34/673`, fail-closed в проде.
 - **Прод-пункты (чек-лист):** подтверждённый домен DKIM/SPF, API-ключ, webhook `Bounced`/`dropped`,
-  realm SMTP Keycloak → DashaMail; сверить поля тела запроса с актуальной документацией при выдаче ключа
-  (из нашей сети док недоступна: `401/404`).
+  realm SMTP Keycloak → DashaMail. Форма запроса и ответа **сверена с документацией** (см. требование 1),
+  незнакомая форма ответа обрабатывается как отказ (покрыто тестом).

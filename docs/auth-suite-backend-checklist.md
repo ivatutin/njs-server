@@ -499,8 +499,9 @@ POST /auth/sign-in/phone (OTP → CIBA)  → 200 { expires_in: 300 }; GET /users
 - [x] подтверждён штатный путь перевыпуска кода: **`cancel` → `request`** (повторный `request` при активном change → `409
       ContactChangeAlreadyPending`); `OTP_CHALLENGES.verify` работает по `(target, purpose)`, поэтому перевыпуск челленджа
       не ломает начатый change; фронту нужен **явный шаг «отменить и начать заново»** в UI + отсчёт `retryAfterSeconds`
-- [ ] сверить поля тела запроса DashaMail с их документацией при выдаче ключа (использованы `message_id`, `from_email`,
-      `from_name`, `to`, `subject`, `text`; документация из нашей сети недоступна — `401/404`)
+- [x] форма запроса/ответа сверена с документацией (15.10.2026): тело — `message_id`, `from_email`, `from_name`, `to`,
+      `subject`, `message` (HTML), `plain_text`; ответ — `response.msg.err_code` (`0` = принято), `data.transaction_id` =
+      эхо нашего `message_id`; незнакомая форма ответа = отказ, а не ложный успех
 
 ---
 
