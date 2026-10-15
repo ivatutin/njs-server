@@ -122,6 +122,15 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     return user ? this.toUser(user) : null;
   }
 
+  async setPassword(params: { keycloakId: string; password: string }): Promise<void> {
+    try {
+      await this.client.resetPassword(params.keycloakId, params.password);
+    } catch (err) {
+      // 400 с `errorMessage` от Keycloak = нарушение password policy (как при создании).
+      throw this.mapCreateUserError(err);
+    }
+  }
+
   async sendVerifyEmail(keycloakId: string): Promise<void> {
     await this.client.sendVerifyEmail(keycloakId);
   }
@@ -160,6 +169,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     return {
       keycloakId: user.id,
       username: user.username ?? null,
+      phone: user.attributes?.phoneNumber?.[0] ?? null,
       email: user.email ?? null,
       emailVerified: user.emailVerified === true,
       firstName: user.firstName ?? null,

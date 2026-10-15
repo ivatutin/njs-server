@@ -11,6 +11,8 @@ export interface KeycloakAdminUserRepresentation {
   firstName?: string;
   lastName?: string;
   enabled?: boolean;
+  /** Наши атрибуты: `phoneNumber`, `phoneVerified` (ADR-0015). */
+  attributes?: Record<string, string[]>;
 }
 
 /** Событие пользователя из Admin Events API. */
@@ -92,6 +94,18 @@ export class KeycloakAdminClient {
       if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
       throw err;
     }
+  }
+
+  /** Устанавливает пароль (не temporary — смена, а не приглашение). */
+  async resetPassword(userId: string, password: string): Promise<void> {
+    await axios.put(
+      `${this.adminUrl}/users/${userId}/reset-password`,
+      { type: 'password', value: password, temporary: false },
+      {
+        ...(await this.auth()),
+        headers: { ...(await this.auth()).headers, 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   /**

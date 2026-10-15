@@ -16,6 +16,8 @@ import { SignUpPhoneUseCase } from './application/use-cases/sign-up-phone/sign-u
 import { SignInPhoneUseCase } from './application/use-cases/sign-in-phone/sign-in-phone.use-case';
 import { HandleCibaChannelRequestUseCase } from './application/use-cases/handle-ciba-channel-request/handle-ciba-channel-request.use-case';
 import { CibaChannelController } from './interfaces/http/ciba-channel.controller';
+import { AccountSecurityController } from './interfaces/http/account-security.controller';
+import { SetPasswordUseCase } from './application/use-cases/set-password/set-password.use-case';
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
 import { KeycloakJwtVerifier } from './infrastructure/keycloak/keycloak-jwt.verifier';
 import { KeycloakAdapter } from './infrastructure/keycloak/keycloak.adapter';
@@ -36,7 +38,7 @@ import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
 import { RolesGuard } from './interfaces/http/guards/roles.guard';
 
 @Module({
-  controllers: [AuthController, CibaChannelController],
+  controllers: [AuthController, CibaChannelController, AccountSecurityController],
   providers: [
     // Adapters
     KeycloakHttpClient,
@@ -64,6 +66,7 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     SignInPhoneUseCase,
     HandleCibaChannelRequestUseCase,
     RequestReauthUseCase,
+    SetPasswordUseCase,
 
     // Инфраструктура
     { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },

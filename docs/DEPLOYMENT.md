@@ -281,6 +281,9 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
    `invalid_grant / Account is not fully set up`: недоступны `POST /auth/reauth`, смена пароля и обычный вход по паролю.
    Проверка: `POST /realms/<realm>/protocol/openid-connect/token` с `grant_type=password` и логином такого
    пользователя должен отдавать токены, а не `invalid_grant`.
+8. Там же (User profile) включить **`unmanagedAttributePolicy = ENABLED`**. Без этого Keycloak **молча отбрасывает**
+   нестандартные атрибуты, и наши `phoneNumber` / `phoneVerified` (их пишет phone-регистрация, ADR-0015) не сохраняются.
+   Проверка: `GET /admin/realms/<realm>/users/{id}` → в `attributes` видны `phoneNumber` и `phoneVerified`.
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash

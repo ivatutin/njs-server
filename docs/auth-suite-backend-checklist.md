@@ -338,7 +338,14 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 - [ ] `POST /users/me/contact-change/verify` — protected — `{ changeToken, oldCode?, newCode }` → `200 UserDto`
 - [ ] `POST /users/me/contact-change/cancel` — protected — `{ changeToken }` → `204`
 - [ ] `POST /users/me/password` — protected + `X-Reauth-Token` — `{ newPassword }` → `204`
-- [ ] `POST /users/me/set-password` — protected — `{ verificationToken /* purpose='set-password' */, newPassword }` → `204`
+- [x] `POST /users/me/set-password` — protected — `{ verificationToken /* purpose='set-password' */, newPassword }` → `204`
+  - токен должен быть с `purpose='set-password'` **и принадлежать контакту вызывающего** (сверяем `target` токена с
+    телефоном/email пользователя из Keycloak): иначе владелец валидного токена на свой номер задал бы пароль чужому аккаунту
+  - пароль пишет admin API Keycloak, политику проверяет он же → `422 PasswordPolicyViolation`
+  - **находка + фикс (важно для прода):** Keycloak **молча отбрасывал** наши атрибуты `phoneNumber`/`phoneVerified` —
+    в user-profile реалма по умолчанию `unmanagedAttributePolicy` выключен, поэтому в Phase 2 они фактически не сохранялись
+    (в админ-API `attributes` пусто). Теперь политика включена (`ENABLED`), атрибуты персистятся, и проверка «токен принадлежит
+    контакту» на них опирается. Для прода это обязательный шаг → DEPLOYMENT §7
 
 **Коды:** `ReauthTokenInvalid`, `ReauthTokenExpired`, `ChangeTokenExpired`, `ContactAlreadyExists`, `ContactChangeAlreadyPending`, `PasswordPolicyViolation`, `OtpInvalid`, `OtpExpired`.
 
@@ -352,6 +359,19 @@ Redis: auth:reauth:<sha256>          ← хранится хеш, не сам т
 ```
 Перед этим пришлось снять `required` у `email` в user-profile реалма (иначе password-grant для phone-пользователя
 падает с `Account is not fully set up`) — в проде это шаг настройки, а не код.
+
+**Acceptance Phase 4 (set-password) — ✅ пройден на живом стеке (15.10.2026):**
+```
+POST /auth/otp/send { purpose: 'set-password' }   → 200 challenge
+POST /auth/otp/verify                             → 200 verificationToken
+POST /users/me/set-password { token, newPassword }→ 204
+password-grant с новым паролем                    → 200 { expires_in: 300 }
+password-grant со старым паролем                  → 400 invalid_grant   ← пароль действительно сменился
+повтор с уже использованным токеном               → 422 VerificationTokenExpired (одноразовость)
+слабый пароль (политика реалма length(10))        → 422 PasswordPolicyViolation
+```
+Источник телефона для сверки — атрибут Keycloak `phoneNumber`; для этого в реалме включён
+`unmanagedAttributePolicy = ENABLED` (иначе Keycloak отбрасывает нестандартные атрибуты, см. находку выше).
 
 Advanced-операции (сессии, отвязка провайдеров, удаление аккаунта, MFA) — нативный Keycloak Account Console, не наши эндпоинты.
 

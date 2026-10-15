@@ -9,6 +9,8 @@ export interface IdentityAdminUser {
    * других данных (подтверждение пароля в reauth, привязка federated identity).
    */
   username?: string | null;
+  /** Телефон из атрибутов Keycloak (`phoneNumber`), E.164. */
+  phone?: string | null;
   email: string | null;
   emailVerified: boolean;
   firstName: string | null;
@@ -59,6 +61,12 @@ export interface IdentityAdminPort {
 
   /** Пользователь по `keycloakId` (то есть по `sub` из токена). */
   findById(keycloakId: string): Promise<IdentityAdminUser | null>;
+
+  /**
+   * Устанавливает (перезаписывает) пароль пользователя.
+   * Ошибки: `PasswordPolicyViolationError` (422).
+   */
+  setPassword(params: { keycloakId: string; password: string }): Promise<void>;
 
   findByEmail(email: string): Promise<IdentityAdminUser | null>;
 
