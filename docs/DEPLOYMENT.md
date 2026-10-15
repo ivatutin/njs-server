@@ -273,9 +273,9 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
      | `tokenUrl`, `userInfoUrl`, `jwksUrl` | внутренний `http://keycloak:8080/realms/<realm>/…` | вызовы делает **контейнер** Keycloak |
      | `issuer` | публичный `https://<KC_HOSTNAME>/realms/<realm>` | должен совпасть с `iss` в id-token |
 
-   - Отдельно решить судьбу шага **Review Profile** в flow `first broker login`: в стоковом виде он спрашивает профиль
-     на каждом первом brokered-входе. Выключить (импорт молча) или оставить как UX — вопрос продукта (№7 в
-     `docs/contract-proposals/auth-v1.3-social.md`).
+   - **Review Profile** в flow `first broker login` — **отключить** (решение координатора Q7, 15.10.2026): пользователь
+     не должен попадать на брендированную страницу Keycloak. Профиль импортируется молча, неполноту закрывают
+     `needsContactCompletion` и статус `pending_verification` (см. `docs/adr/0016-social-login-providers.md`).
 7. В **Realm settings → User profile** снять `required` у атрибута **`email`** (у `firstName`/`lastName` оставить).
    Иначе у phone-пользователя — а у него email нет по дизайну (ADR-0015) — **любой** password-grant падает с
    `invalid_grant / Account is not fully set up`: недоступны `POST /auth/reauth`, смена пароля и обычный вход по паролю.

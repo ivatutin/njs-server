@@ -105,6 +105,23 @@ endpoint → `first-broker-login` → наш `redirect_uri` с кодом) за�
 | Всё своими руками, без Keycloak | Теряем federated identity и брокеринг, который Keycloak уже умеет; дублируем состояние аккаунтов |
 | Брокеренный путь тоже через CIBA | Лишний шаг: токены уже получены обменом кода |
 
+## Решение координатора по предложению v1.3 (15.10.2026)
+
+Чтобы ADR был самодостаточным (полный текст — `video-service/docs/handoff/decision-v1.3-social.md`):
+
+| Вопрос | Решение |
+| --- | --- |
+| Q1 `state` / PKCE | клиентские (принято предложение бэкенда); фронт сверяет `state` **до** вызова `POST /auth/oidc/callback` — именно это блокирует login-CSRF |
+| Q2 линковка | вариант (б): **автопривязка запрещена** → `409 ProviderAccountLinked` (identity занята) / `409 ContactAlreadyExists` (контакт занят) |
+| Q3 неполный профиль | обычные токены + `needsContactCompletion`, **статус аккаунта `pending_verification`**; новые scopes не вводятся |
+| Q4 VK ID / Yandex | не фризим: сначала нужен спайк по формам данных их SDK |
+| Q5 состав MVP | **Keycloak-OIDC + Telegram Widget**; `telegram-bot` (нужен `POST /auth/providers/:id/start`), VK ID, Yandex — отдельными предложениями |
+| Q6 эндпоинт привязки | не нужен: редкий случай закрывает Keycloak Account Console |
+| Q7 Review Profile | вариант (а): **шаг отключаем** — пользователь не должен попадать на брендированную страницу Keycloak; профиль импортируется молча, неполноту закрывают `needsContactCompletion` и `pending_verification`. Это конфиг realm, поэтому фиксируется здесь |
+| Скоуп | реализация — **вне Auth v1**, по решению владельца |
+
+Следствие для конфигурации (шаг в DEPLOYMENT §7): экзекуция `Review Profile` в flow `first broker login` выключается.
+
 ## Ссылки
 
 - `docs/contract-proposals/auth-v1.3-social.md` — форма эндпоинтов, коды, открытые вопросы

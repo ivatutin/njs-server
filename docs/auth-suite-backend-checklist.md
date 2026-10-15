@@ -297,14 +297,15 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 ## 🟢 Phase 3 — Social (VK ID / Yandex / Telegram)
 
-> **v1.3 принят координатором (15.10.2026).** Заморожены 3 эндпоинта: `GET /auth/providers`,
-> `POST /auth/oidc/callback`, `POST /auth/providers/:id/callback` c **`:id = 'telegram-widget'`**;
-> `telegram-bot` / `vkid` / `yandex` — **зарезервированы** (добавляются отдельными предложениями, аддитивно).
-> Коды `SocialAuthFailed` (422) и `ProviderAccountLinked` (409) внесены в контракт.
+> **v1.3 принят координатором (15.10.2026).** **MVP соц-входа = Keycloak-OIDC + Telegram Widget**; заморожены 3 эндпоинта:
+> `GET /auth/providers`, `POST /auth/oidc/callback`, `POST /auth/providers/:id/callback` c **`:id = 'telegram-widget'`**;
+> `telegram-bot` (нужен отдельный `POST /auth/providers/:id/start`), `vkid`, `yandex` — **зарезервированы**, добавляются
+> отдельными предложениями. Коды `SocialAuthFailed` (422) и `ProviderAccountLinked` (409) внесены в контракт.
 > Решения координатора: автопривязка провайдера по совпавшему контакту **запрещена** → `409 ProviderAccountLinked`
 > либо `409 ContactAlreadyExists`; неполный профиль → обычные токены + `needsContactCompletion`, **статус аккаунта
 > `pending_verification`** (новых scopes нет); `state` и PKCE — **клиентские**, доказательство для бэкенда — успешный
-> обмен `code`. **Реализация — вне скоупа Auth v1** (решение владельца) → в этом репозитории не начинается.
+> обмен `code`; **Review Profile отключаем** (конфиг realm, зафиксировано в ADR-0016).
+> **Реализация — вне скоупа Auth v1** (решение владельца) → в этом репозитории не начинается.
 > Механизм подтверждён спайком: `docs/adr/0016-social-login-providers.md` + `docs/research/social-login-broker-spike.md`.
 > Ниже — исходный список из чек-листа (для истории).
 >
