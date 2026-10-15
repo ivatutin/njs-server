@@ -8,7 +8,7 @@ import { SetPasswordCommand } from '../../application/use-cases/set-password/set
 import { SetPasswordUseCase } from '../../application/use-cases/set-password/set-password.use-case';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
-import { REAUTH_TOKEN_HEADER, ReauthTokenGuard } from './guards/reauth-token.guard';
+import { ReauthTokenGuard } from './guards/reauth-token.guard';
 
 /**
  * Self-service операции над **своим** аккаунтом (Phase 4).
