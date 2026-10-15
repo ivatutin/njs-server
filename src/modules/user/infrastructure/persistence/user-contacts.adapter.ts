@@ -42,6 +42,45 @@ export class UserContactsAdapter implements UserContacts {
     @Inject(EVENT_BUS) private readonly eventBus: EventBus,
   ) {}
 
+  async find(keycloakId: string): Promise<UserContactsSnapshot | null> {
+    const row = await this.prisma.user.findUnique({ where: { keycloakId } });
+    return row ? toSnapshot(UserMapper.toDomain(row)) : null;
+  }
+
+  async isContactTaken(params: { email?: string | null; phone?: string | null }): Promise<boolean> {
+    const email = params.email ? Email.create(params.email).toString() : null;
+    const phone = params.phone ? Phone.create(params.phone).getValue() : null;
+    if (email === null && phone === null) return false;
+
+    const row = await this.prisma.user.findFirst({
+      where: {
+        OR: [...(email ? [{ email }] : []), ...(phone ? [{ phone }] : [])],
+      },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  async rollback(params: {
+    keycloakId: string;
+    email: string | null;
+    phone: string | null;
+    emailVerifiedAt: string | null;
+    phoneVerifiedAt: string | null;
+  }): Promise<void> {
+    // Пишем напрямую, минуя доменные инварианты: это откат к уже существовавшему состоянию,
+    // а не пользовательская операция (ADR-0017 §3, компенсация).
+    await this.prisma.user.update({
+      where: { keycloakId: params.keycloakId },
+      data: {
+        email: params.email,
+        phone: params.phone,
+        emailVerifiedAt: params.emailVerifiedAt ? new Date(params.emailVerifiedAt) : null,
+        phoneVerifiedAt: params.phoneVerifiedAt ? new Date(params.phoneVerifiedAt) : null,
+      },
+    });
+  }
+
   async applyVerifiedChange(params: {
     keycloakId: string;
     email?: string | null;

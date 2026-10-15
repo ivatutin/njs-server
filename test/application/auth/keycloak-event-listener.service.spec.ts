@@ -19,6 +19,7 @@ describe('KeycloakEventListenerService', () => {
       findById: jest.fn(),
       setPassword: jest.fn(),
       logoutAllSessions: jest.fn(),
+      updateContacts: jest.fn(),
     };
     eventBus = {
       publish: jest.fn().mockResolvedValue(undefined),

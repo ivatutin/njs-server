@@ -108,6 +108,14 @@ export class KeycloakAdminClient {
     );
   }
 
+  /** Обновляет пользователя (PUT /users/{id}): email/emailVerified и наши атрибуты (ADR-0017). */
+  async updateUser(userId: string, representation: Record<string, unknown>): Promise<void> {
+    await axios.put(`${this.adminUrl}/users/${userId}`, representation, {
+      ...(await this.auth()),
+      headers: { ...(await this.auth()).headers, 'Content-Type': 'application/json' },
+    });
+  }
+
   /** Гасит все сессии пользователя (refresh-токены становятся недействительными). */
   async logoutUser(userId: string): Promise<void> {
     await axios.post(`${this.adminUrl}/users/${userId}/logout`, null, await this.auth());

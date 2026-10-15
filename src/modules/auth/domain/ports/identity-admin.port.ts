@@ -78,6 +78,21 @@ export interface IdentityAdminPort {
    */
   logoutAllSessions(keycloakId: string): Promise<void>;
 
+  /**
+   * Обновляет контакты идентичности: `email` (+`emailVerified`) и/или наши атрибуты
+   * `phoneNumber`/`phoneVerified` (ADR-0017, путь B: контакт живёт в атрибуте, `username` — handle).
+   *
+   * Вызывается flow'ом `contact-change` уже **после** записи в shadow-БД; ретраи и компенсация —
+   * на стороне use case, здесь ровно одна попытка.
+   */
+  updateContacts(params: {
+    keycloakId: string;
+    email?: string | null;
+    emailVerified?: boolean;
+    phone?: string | null;
+    phoneVerified?: boolean;
+  }): Promise<void>;
+
   findByEmail(email: string): Promise<IdentityAdminUser | null>;
 
   /** Просит Keycloak отправить письмо-подтверждение (realm SMTP). */

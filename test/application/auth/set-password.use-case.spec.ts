@@ -32,6 +32,7 @@ describe('SetPasswordUseCase', () => {
       }),
       setPassword: jest.fn().mockResolvedValue(undefined),
       logoutAllSessions: jest.fn(),
+      updateContacts: jest.fn(),
     } as unknown as jest.Mocked<IdentityAdminPort>;
     revoke = { execute: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<RevokeUserAccessUseCase>;
     useCase = new SetPasswordUseCase(verification, identityAdmin, revoke);

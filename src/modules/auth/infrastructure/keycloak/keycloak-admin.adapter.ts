@@ -160,6 +160,37 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     throw lastError instanceof Error ? lastError : new Error('Keycloak logout failed');
   }
 
+  async updateContacts(params: {
+    keycloakId: string;
+    email?: string | null;
+    emailVerified?: boolean;
+    phone?: string | null;
+    phoneVerified?: boolean;
+  }): Promise<void> {
+    const representation: Record<string, unknown> = {};
+
+    if (params.email !== undefined) representation.email = params.email;
+    if (params.emailVerified !== undefined) representation.emailVerified = params.emailVerified;
+
+    // Телефон живёт в наших атрибутах: Keycloak не знает про `phoneNumber`, но хранит его,
+    // пока включён `unmanagedAttributePolicy = ENABLED` (DEPLOYMENT §7 п.8).
+    if (params.phone !== undefined || params.phoneVerified !== undefined) {
+      representation.attributes = {
+        ...(params.phone !== undefined ? { phoneNumber: [params.phone] } : {}),
+        ...(params.phoneVerified !== undefined
+          ? { phoneVerified: [String(params.phoneVerified)] }
+          : {}),
+      };
+    }
+
+    try {
+      await this.client.updateUser(params.keycloakId, representation);
+    } catch (err) {
+      this.logKeycloakRejection('updateContacts', err);
+      throw err;
+    }
+  }
+
   async sendVerifyEmail(keycloakId: string): Promise<void> {
     await this.client.sendVerifyEmail(keycloakId);
   }

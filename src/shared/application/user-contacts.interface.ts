@@ -24,6 +24,28 @@ export interface UserContactsSnapshot {
 }
 
 export interface UserContacts {
+  /** Текущее состояние контактов (для `request`: какой контакт заменяем и подтверждён ли он). */
+  find(keycloakId: string): Promise<UserContactsSnapshot | null>;
+
+  /**
+   * Занят ли контакт кем-то (ранний `409` на `request`, до отправки кодов). Финальная проверка
+   * всё равно идёт внутри транзакции `applyVerifiedChange` — здесь только UX.
+   */
+  isContactTaken(params: { email?: string | null; phone?: string | null }): Promise<boolean>;
+
+  /**
+   * Компенсация частичного сбоя (ADR-0017 §3): возвращает контакты к снимку «до» вместе с метками
+   * подтверждения. Это **repair**-путь, а не доменная операция, поэтому вызывается только flow'ом
+   * `contact-change` при исчерпании ретраев к Keycloak.
+   */
+  rollback(params: {
+    keycloakId: string;
+    email: string | null;
+    phone: string | null;
+    emailVerifiedAt: string | null;
+    phoneVerifiedAt: string | null;
+  }): Promise<void>;
+
   /**
    * Заменяет контакт, подтверждённый кодами: ровно один канал (`email` **или** `phone`),
    * нормализация — на стороне user-контекста (email → lowercase, телефон → E.164).

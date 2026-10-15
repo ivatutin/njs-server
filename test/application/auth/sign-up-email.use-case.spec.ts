@@ -41,6 +41,7 @@ describe('SignUpEmailUseCase', () => {
       findById: jest.fn(),
       setPassword: jest.fn(),
       logoutAllSessions: jest.fn(),
+      updateContacts: jest.fn(),
     };
     users = { ensureFromIdentity: jest.fn().mockResolvedValue(PROVISIONED_USER) };
     useCase = new SignUpEmailUseCase(identityAdmin, users);
