@@ -642,12 +642,12 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 Итого: **16 из 19** эндпоинтов реализованы (v1.4 добавил `logout-all`); оставшиеся 3 — Phase 3.
 
 **Качество API-документации (16.10.2026, по пакету задач фронта):** у response-DTO не было `properties` в Swagger —
-они были обычными TS-классами, а `@ApiProperty` в `src` не использовался ни разу. Перевёл **10 response-DTO** на Zod +
+они были обычными TS-классами, а `@ApiProperty` в `src` не использовался ни разу. Перевёл **11 response-DTO** на Zod +
 `createZodDto` (единый стиль с request-DTO): auth 6 (`UserDto`, `TokenPairResponseDto`, `ReauthResponseDto`,
 `SignUpEmailResponseDto`, `SignUpPhoneResponseDto`, `RequestContactChangeResponseDto`), otp 4 (`OtpChallengeResponseDto`,
 `OtpVerifiedResponseDto`, `PhoneCallChallengeResponseDto`, `PhoneCallStatusResponseDto` — состояние берётся из домена
 через `z.enum(CALL_STATUSES)`), user 1 (`UserResponseDto`). Проверено живьём: `GET /api/v1/docs-json` отдаёт заполненные
-`properties` у всех десяти схем (включая `method` и `otpFallback`, из-за которых фронту приходилось читать код).
+`properties` у всех **одиннадцати** схем (включая `method` и `otpFallback`, из-за которых фронту приходилось читать код).
 Конструирования DTO в коде нет (`new *Dto(` — 0), поэтому поведение не изменилось: `tsc` 0, 61 suite / 348 тестов.
 
 **Вход при незакрытом `VERIFY_EMAIL` (проверено живьём 16.10.2026):** `POST /auth/sign-in` отвечает **`401
