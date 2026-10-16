@@ -528,8 +528,10 @@ contact-change notified kc=fbfdc201... channel=phone
 **Долги (после Auth v1):** drift-детектор KC ↔ shadow; админский путь восстановления для passwordless-тупика (I4);
 канал доставки OTP-кода на email (см. вопрос координатору `njs-server-question-email-otp.md`).
 
-**Прогресс реализации трио:** срез 1 — доменный метод `User.applyVerifiedContactChange` (+7 тестов, коммит `5bfbd57`);
-дальше — shared-порты `OTP_CHALLENGES`/`USER_CONTACTS`, `changeToken`-стор в Redis, три use-case, HTTP-слой, приёмка живьём.
+**Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
+shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →
+use-case'ы `request` / `verify` / `cancel` → HTTP-слой → живая приёмка (см. блоки acceptance ниже).
+Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 остаётся только долг «drift-детектор KC ↔ shadow».
 
 ## Email-канал (ADR-0019, решение E1 — DashaMail HTTP)
 
