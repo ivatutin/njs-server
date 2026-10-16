@@ -42,6 +42,7 @@ import { RequestContactChangeUseCase } from './application/use-cases/request-con
 import { ContactDriftDetectorService } from './application/services/contact-drift-detector.service';
 import { VerifyContactChangeUseCase } from './application/use-cases/verify-contact-change/verify-contact-change.use-case';
 import { CancelContactChangeUseCase } from './application/use-cases/cancel-contact-change/cancel-contact-change.use-case';
+import { LogoutAllUseCase } from './application/use-cases/logout-all/logout-all.use-case';
 import { RedisPasswordResetRateLimiter } from './infrastructure/rate-limit/redis-password-reset.rate-limiter';
 import { AuthController } from './interfaces/http/auth.controller';
 import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
@@ -90,6 +91,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     SetPasswordUseCase,
     ChangePasswordUseCase,
     RevokeUserAccessUseCase,
+    // Контракт v1.4: выход со всех устройств — тот же отзыв доступа, reason='logout-everywhere'
+    LogoutAllUseCase,
 
     // Инфраструктура
     { provide: PASSWORD_RESET_RATE_LIMITER, useClass: RedisPasswordResetRateLimiter },

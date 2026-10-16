@@ -14,6 +14,8 @@ import { ReauthTokenGuard } from './guards/reauth-token.guard';
 import { ContactChangeUnavailableError } from '../../domain/errors/contact-change-unavailable.error';
 import { CancelContactChangeCommand } from '../../application/use-cases/cancel-contact-change/cancel-contact-change.command';
 import { CancelContactChangeUseCase } from '../../application/use-cases/cancel-contact-change/cancel-contact-change.use-case';
+import { LogoutAllCommand } from '../../application/use-cases/logout-all/logout-all.command';
+import { LogoutAllUseCase } from '../../application/use-cases/logout-all/logout-all.use-case';
 import { RequestContactChangeCommand } from '../../application/use-cases/request-contact-change/request-contact-change.command';
 import { RequestContactChangeUseCase } from '../../application/use-cases/request-contact-change/request-contact-change.use-case';
 import { VerifyContactChangeCommand } from '../../application/use-cases/verify-contact-change/verify-contact-change.command';
@@ -46,6 +48,7 @@ export class AccountSecurityController {
     private readonly requestContactChangeUC: RequestContactChangeUseCase,
     private readonly verifyContactChangeUC: VerifyContactChangeUseCase,
     private readonly cancelContactChangeUC: CancelContactChangeUseCase,
+    private readonly logoutAllUC: LogoutAllUseCase,
   ) {}
 
   @Post('set-password')
@@ -123,7 +126,12 @@ export class AccountSecurityController {
     @Req() request: Request,
   ): Promise<RequestContactChangeResponseDto> {
     const result = await this.requestContactChangeUC.execute(
-      new RequestContactChangeCommand(user.sub, dto.channel, dto.newValue, resolveClientIp(request)),
+      new RequestContactChangeCommand(
+        user.sub,
+        dto.channel,
+        dto.newValue,
+        resolveClientIp(request),
+      ),
     );
     return toRequestContactChangeResponse(result);
   }
@@ -191,5 +199,25 @@ export class AccountSecurityController {
     await this.cancelContactChangeUC.execute(
       new CancelContactChangeCommand(user.sub, dto.changeToken),
     );
+  }
+
+  @Post('logout-all')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Sign out on all devices',
+    description:
+      'Kills every Keycloak session of the caller and revokes already issued access tokens (sub marker, ADR-0018). ' +
+      'The current access token dies as well: 204 means "signed out everywhere, including this device" — the client ' +
+      'must drop its tokens and go to sign-in. No X-Reauth-Token is required: the operation cannot take over the ' +
+      'account, while requiring reauth would dead-end passwordless users. Idempotent; 503 means nothing was revoked.',
+  })
+  @ApiResponse({ status: 204, description: 'No Content' })
+  @ApiResponse({ status: 401, description: 'InvalidToken' })
+  @ApiResponse({
+    status: 503,
+    description: 'Keycloak/инфраструктура недоступна — сессии не погашены, повтор безопасен',
+  })
+  async logoutAll(@CurrentUser() user: TokenClaims): Promise<void> {
+    await this.logoutAllUC.execute(new LogoutAllCommand(user.sub));
   }
 }

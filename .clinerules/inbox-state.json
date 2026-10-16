@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-10-16T12:10:00+03:00",
-  "note": "Обновляется workflow /inbox (.clinerules/workflows/inbox.md). Значение = момент последнего разобранного входящего. Первый проход (12:10): разобраны replies/protocol-ack.md, replies/scope-sync.md, replies/drift-detector.md, auth/status.md, shared/conventions.md; зеркало контракта сверено.",
+  "checkedAt": "2026-10-16T12:35:00+03:00",
+  "note": "Обновляется workflow /inbox (.clinerules/workflows/inbox.md). Значение = момент последнего разобранного входящего. Проход 2 (12:35): прочитаны replies/drift-detector-condition1.md, replies/logout-all-proposal.md, auth/status.md, новый контракт v1.4; зеркало было расхождено и перекопировано целиком (sha256 158ef7a8...).",
   "lastRun": {
     "date": "2026-10-16T12:10:00+03:00",
     "new": [

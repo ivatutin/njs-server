@@ -554,10 +554,14 @@ identity в KC, устойчивость к ошибкам починки и д�
 **Долги (после Auth v1):** админский путь восстановления для passwordless-тупика (I4). Остальное закрыто:
 drift-детектор — реализован (см. блок выше), канал доставки OTP-кода на email — ADR-0019, ссылка на вопрос координатору —
 `docs/auth/sessions/njs-server/questions/email-otp.md`.
-**Предложение к контракту (отправлено 16.10.2026):** «выход на всех устройствах» — `POST /users/me/logout-all` → `204`
-через `RevokeUserAccessUseCase` с `reason='logout-everywhere'`; канонический файл —
-`docs/contract-proposals/auth-v1.4-logout-all.md`, отправлено координатору —
-`docs/auth/sessions/njs-server/questions/logout-all-contract-proposal.md` (ждём решения: форма, `X-Reauth-Token`).
+**Контракт v1.4 — «выход на всех устройствах» — ✅ реализовано (16.10.2026):** предложение принято координатором
+целиком (`docs/contract-proposals/auth-v1.4-logout-all.md`), контракт поднят до **v1.4** (зеркало перекопировано
+целиком, `sha256 = 158ef7a8…` совпал).
+- [x] `POST /users/me/logout-all` — protected, без тела → `204`: гасит все сессии Keycloak **и** ставит метку отзыва
+  по `sub` (тот же `RevokeUserAccessUseCase`, `reason='logout-everywhere'`); текущий токен умирает тоже; **без
+  `X-Reauth-Token`** (операция защитная, reauth дал бы тупик passwordless-пользователям — I4); идемпотентно; отказ
+  инфраструктуры → `503` без нового кода; `POST /auth/sign-out` не меняется; ADR-0018 уточнён.
+  Тесты: `test/application/auth/logout-all.use-case.spec.ts` (3), `test/interfaces/account-security.logout-all.spec.ts` (2).
 
 **Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
 shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →
@@ -601,6 +605,6 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 **Фактический статус (16.10.2026):** Phase 0 ✅ · Phase 1 ✅ · Phase 1.5 ✅ · Phase 2 ✅ · Phase 2.5 ✅
 (звонковый канал включается ключом `SMSRU_CALLCHECK_ENABLED`) · **Phase 4 ✅ — все шесть эндпоинтов, включая трио
 `contact-change`**; **Phase 3 — вне объёма Auth v1** (решение координатора: соц-вход отложен).
-Итого: **15 из 18** эндпоинтов реализованы и приняты живьём, оставшиеся 3 — Phase 3.
+Итого: **16 из 19** эндпоинтов реализованы (v1.4 добавил `logout-all`); оставшиеся 3 — Phase 3.
 
 **Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в `auth-roadmap.md` репозитория фронта, § «Когда уходим от MSW»).
