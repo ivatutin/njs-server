@@ -1,0 +1,4 @@
+{
+  "checkedAt": "2026-10-16T11:28:00+03:00",
+  "note": "Обновляется workflow /inbox (.clinerules/workflows/inbox.md). Значение = момент последнего разобранного входящего. 11:28 выставлено вручную при создании: replies/protocol-ack.md и contract.sha256 прочитаны, а auth/status.md, обновлённый 11:29, — ещё нет."
+}
