@@ -531,8 +531,23 @@ contact-change notified kc=fbfdc201... channel=phone
 и не превращает успех в `503`). Побочно приёмка подтвердила работу лимитов: `request` отдавал `422 OtpRateLimited`
 с `retryAfter` на кулдаун контакта, per-IP лимит и личный лимит смен (10/сутки) — то есть защита от перебора живая.
 
-**Долги (после Auth v1):** drift-детектор KC ↔ shadow; админский путь восстановления для passwordless-тупика (I4);
-канал доставки OTP-кода на email (см. вопрос координатору `docs/auth/sessions/njs-server/questions/email-otp.md`).
+**Drift-детектор контактов shadow ↔ Keycloak — ✅ реализован (16.10.2026, ADR-0017 §3):**
+```
+ContactDriftDetectorService (setInterval в OnModuleInit, как KeycloakEventListenerService — без внешнего планировщика):
+  сверка → расхождение → Keycloak приводится к shadow полной записью контактов (идемпотентно)
+  keyset-пагинация по id, страницами по 100; per-user ошибки не роняют проход
+  report-only режим: CONTACT_DRIFT_HEAL_ENABLED=false — только сообщаем, не пишем
+  логи: contact_drift_detected / _healed / _heal_failed / _identity_missing + сводка прохода (маски, без PII)
+  env: CONTACT_DRIFT_DETECTOR_ENABLED=true, CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS=1800, CONTACT_DRIFT_HEAL_ENABLED=true
+```
+Тесты: `test/application/auth/contact-drift-detector.service.spec.ts` — 9 кейсов (сверка, дрейф в обе стороны,
+report-only, отсутствие identity в KC, устойчивость к ошибкам починки, пагинация курсором, таймер).
+Направление починки — **shadow → Keycloak**: shadow источник правды для контактов (уникальность телефона держим мы).
+`identity_missing` автоматически не лечим — только сообщаем (создание/удаление пользователей вне полномочий детектора).
+
+**Долги (после Auth v1):** админский путь восстановления для passwordless-тупика (I4). Остальное закрыто:
+drift-детектор — реализован (см. блок выше), канал доставки OTP-кода на email — ADR-0019, ссылка на вопрос координатору —
+`docs/auth/sessions/njs-server/questions/email-otp.md`.
 
 **Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
 shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →

@@ -337,7 +337,14 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
      shadow — `UPDATE "user"."users" SET ... WHERE keycloak_id = '<sub>'`;
    - после инцидента запись смены помечена `failed`: повторный `verify` **ничего не применяет**, нужен новый
      `cancel` → `request`;
-   - **drift-детектор** (автосверка KC ↔ shadow + самопочинка идемпотентным повтором) — долг после Auth v1.
+   - **drift-детектор контактов** (ADR-0017 §3) работает по таймеру в самом приложении: раз в 30 минут сверяет
+     shadow ↔ Keycloak и **приводит Keycloak к shadow** (`CONTACT_DRIFT_DETECTOR_ENABLED=true`,
+     `CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS=1800`). Починку можно выключить (`CONTACT_DRIFT_HEAL_ENABLED=false`) —
+     тогда детектор только сообщает о расхождениях, ничего не записывая; в логах его видно по маркерам
+     `contact_drift_detected` / `contact_drift_healed` / `contact_drift_heal_failed` / `contact_drift_identity_missing`
+     и по сводке прохода `contact drift scan done: scanned=… drifted=… healed=… failed=…`;
+   - `contact_drift_identity_missing` (в shadow есть пользователь, в Keycloak нет) автоматически **не лечим**:
+     создание/удаление пользователей вне полномочий детектора — разбирается вручную (см. выше).
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:
 
 ```bash
