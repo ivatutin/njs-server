@@ -1,8 +1,14 @@
 # ADR 0017: Смена контакта (email/phone) — синхронизация Keycloak и shadow-БД
 
 - **Дата:** 2026-10-15 (ред. 2 — после ревью координатора)
-- **Статус:** **Accepted с условиями.** Механизм подтверждён, но **реализация не начинается** до: (B1) решения по политике
-  `username` и (B2) проектирования обработки частичного сбоя. (B3) вынесен в **ADR-0018** (отзыв access-токенов).
+- **Статус:** **Accepted и реализовано** (ред. 3 — после реализации и живой приёмки 16.10.2026). Все срезы в `main`:
+  доменный метод `User.applyVerifiedContactChange`, shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER`,
+  `changeToken`-стор, use-case'ы `request`/`verify`/`cancel`, HTTP-слой; приёмка — в
+  `docs/auth-suite-backend-checklist.md` (§ «Phase 4 — трио contact-change»).
+  **Приёмка нашла и закрыла два дефекта:** (1) повторный `request` при активной смене отвечал `OtpRateLimited`
+  вместо `ContactChangeAlreadyPending` — теперь слот проверяется до лимитов; (2) `PUT /users/{id}` в Keycloak —
+  полная замена представления, из-за чего смена одного контакта затирала `email`/`firstName`/`lastName` и ломала
+  вход (`Account is not fully set up`) — теперь read-modify-write.
 - **Обновление 15.10.2026 (вечер): B2 решён — sign-off получен, развилки закрыты:**
   (1) `verify`: **отзыв доступа ДО применения**, `503` = ничего не применено, `changeToken` жив, повтор разрешён,
   заголовок `Retry-After`; (2) повторный `verify` после успеха → **`200 UserDto` идемпотентно** (запись `applied`

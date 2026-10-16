@@ -513,6 +513,18 @@ shadow (psql)                           → phone=+79990000124, phone_verified=t
    `email`, `firstName`, `lastName`, после чего password-grant отвечал `invalid_grant / Account is not fully set up`.
    Теперь read-modify-write: текущее состояние переносится, меняется только контакт, `attributes` мерджятся.
 
+**Уведомления (ADR-0017 §6) — ✅ приняты на живом стеке (16.10.2026):**
+```
+verify (смена телефона, requiresOldChallenge=true) → 200
+[dev-sms] to=+7 (***) ***-01-29 text=Контакт в вашем аккаунте изменён…   ← новый контакт
+[dev-sms] to=+7 (***) ***-01-24 text=Контакт в вашем аккаунте изменён…   ← прежний контакт
+contact-change notified kc=fbfdc201... channel=phone
+```
+Реализация: shared-порт `CONTACT_CHANGE_NOTIFIER` → `ContactChangeNotifierAdapter` (те же каналы OTP: `SmsSender.sendText`,
+`EmailSender.sendMessage`); вызов из `verify` после `markApplied`, best-effort (падение доставки логируется маскированно
+и не превращает успех в `503`). Побочно приёмка подтвердила работу лимитов: `request` отдавал `422 OtpRateLimited`
+с `retryAfter` на кулдаун контакта, per-IP лимит и личный лимит смен (10/сутки) — то есть защита от перебора живая.
+
 **Долги (после Auth v1):** drift-детектор KC ↔ shadow; админский путь восстановления для passwordless-тупика (I4);
 канал доставки OTP-кода на email (см. вопрос координатору `njs-server-question-email-otp.md`).
 
