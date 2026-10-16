@@ -493,6 +493,26 @@ POST /auth/sign-in/phone (OTP → CIBA)  → 200 { expires_in: 300 }; GET /users
 - **`handle`** — «несекретный, но непубличный»: наружу (в `UserDto`/фронт) не отдаём; для поддержки — отдельным
   предложением (как «выйти на всех устройствах»).
 
+**Acceptance трио — ✅ пройден на живом стеке (16.10.2026):**
+```
+sign-in (email + password)              → 200 access token
+reauth { password }                     → 200 reauthToken
+request { channel: phone, newValue }    → 201 { changeToken, requiresOldChallenge: false, newChallengeId }
+код из лога бэкенда ([dev-sms])         → verify { changeToken, newCode }
+verify                                  → 200 UserDto: phone=+79990000124, phoneVerified=true
+GET /users/me прежним access-токеном    → 401   ← отзыв доступа сработал ДО применения (ADR-0018 + B2-1)
+повторный request при активной смене    → 422 ContactChangeAlreadyPending (а не OtpRateLimited)
+cancel { changeToken }                  → 204; следующий request слот проходит (упёрся только в кулдаун OTP)
+Keycloak (admin API)                    → attributes.phoneNumber=[+79990000124], phoneVerified=[true]
+shadow (psql)                           → phone=+79990000124, phone_verified=t
+```
+**Найдено и исправлено приёмкой (два связанных дефекта):**
+1. повторный `request` при активной смене отвечал `OtpRateLimited` от кулдауна — теперь слот проверяется
+   **до** лимитов и отправки кодов (`CHANGE_TOKEN_STORE.hasActive`), фронт получает понятный `ContactChangeAlreadyPending`;
+2. `PUT /users/{id}` в Keycloak — **полная замена представления**: `updateContacts` при смене телефона затирал
+   `email`, `firstName`, `lastName`, после чего password-grant отвечал `invalid_grant / Account is not fully set up`.
+   Теперь read-modify-write: текущее состояние переносится, меняется только контакт, `attributes` мерджятся.
+
 **Долги (после Auth v1):** drift-детектор KC ↔ shadow; админский путь восстановления для passwordless-тупика (I4);
 канал доставки OTP-кода на email (см. вопрос координатору `njs-server-question-email-otp.md`).
 
