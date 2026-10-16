@@ -9,6 +9,10 @@ import {
   UserContacts,
   UserContactsSnapshot,
 } from '@shared/application/user-contacts.interface';
+import {
+  CONTACT_CHANGE_NOTIFIER,
+  ContactChangeNotifier,
+} from '@shared/application/contact-change-notifier.interface';
 import { UserNotFoundError } from '@shared/domain/errors/user-not-found.error';
 import { maskEmail, maskPhone } from '@shared/domain/target-mask';
 import { ChangeTokenExpiredError } from '../../../domain/errors/change-token-expired.error';
@@ -58,6 +62,7 @@ export class VerifyContactChangeUseCase implements UseCase<
     @Inject(USER_CONTACTS) private readonly contacts: UserContacts,
     @Inject(IDENTITY_ADMIN) private readonly identityAdmin: IdentityAdminPort,
     private readonly revokeAccess: RevokeUserAccessUseCase,
+    @Inject(CONTACT_CHANGE_NOTIFIER) private readonly notifier: ContactChangeNotifier,
   ) {}
 
   async execute(cmd: VerifyContactChangeCommand): Promise<VerifyContactChangeResult> {
@@ -140,7 +145,27 @@ export class VerifyContactChangeUseCase implements UseCase<
     await this.changes.markApplied(cmd.changeToken);
     this.logger.log(`contact-change applied kc=${kcShort}... channel=${record.channel}`);
 
+    // Уведомления новому и прежнему контакту (ADR-0017 §6, I1) — best-effort: смена уже
+    // применена, поэтому падение доставки логируем и не превращаем успех в ошибку.
+    await this.notifySafe(record, before);
+
     return { user: applied };
+  }
+
+  private async notifySafe(
+    record: ContactChangeRecord,
+    before: UserContactsSnapshot,
+  ): Promise<void> {
+    try {
+      await this.notifier.notifyChanged({
+        keycloakId: record.keycloakId,
+        channel: record.channel,
+        newValue: record.target,
+        oldValue: this.currentTarget(before, record.channel) || null,
+      });
+    } catch (err) {
+      this.logger.warn(`contact-change notification failed: ${(err as Error).message}`);
+    }
   }
 
   /** Запись контакта в Keycloak с ретраями; `false` — попытки исчерпаны. */

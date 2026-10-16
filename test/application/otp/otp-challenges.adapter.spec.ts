@@ -47,9 +47,10 @@ describe('OtpChallengesAdapter (shared-порт смены контакта, ADR
       hash: jest.fn().mockResolvedValue('hash-1'),
       verify: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<OtpHasher>;
-    sms = { send: jest.fn() } as unknown as jest.Mocked<SmsSender>;
+    sms = { send: jest.fn(), sendText: jest.fn() } as unknown as jest.Mocked<SmsSender>;
     email = {
       send: jest.fn().mockResolvedValue({ accepted: true }),
+      sendMessage: jest.fn().mockResolvedValue({ accepted: true }),
     } as unknown as jest.Mocked<EmailSender>;
 
     adapter = new OtpChallengesAdapter(store, rateLimiter, hasher, sms, email);

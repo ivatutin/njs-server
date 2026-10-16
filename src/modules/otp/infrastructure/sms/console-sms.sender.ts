@@ -19,4 +19,8 @@ export class ConsoleSmsSender implements SmsSender {
       `[dev-sms] purpose=${params.purpose} to=${maskPhone(params.target)} code=${params.code}`,
     );
   }
+
+  async sendText(params: { target: string; text: string }): Promise<void> {
+    this.logger.log(`[dev-sms] to=${maskPhone(params.target)} text=${params.text}`);
+  }
 }

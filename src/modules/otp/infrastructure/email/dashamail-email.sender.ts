@@ -90,6 +90,35 @@ export class DashaMailEmailSender implements EmailSender {
     purpose: OtpPurpose;
     messageId: string;
   }): Promise<EmailSendResult> {
+    const bodies = buildBodies(params.purpose, params.code);
+    return this.post(params.target, params.messageId, {
+      subject: subjectFor(params.purpose),
+      message: bodies.message,
+      plainText: bodies.plain_text,
+    });
+  }
+
+  /** Служебное письмо без кода: тема и тело приходят от вызывающего (ADR-0017 §6). */
+  async sendMessage(params: {
+    target: string;
+    subject: string;
+    message: string;
+    plainText: string;
+    messageId: string;
+  }): Promise<EmailSendResult> {
+    return this.post(params.target, params.messageId, {
+      subject: params.subject,
+      message: params.message,
+      plainText: params.plainText,
+    });
+  }
+
+  /** Общая отправка: сборка тела провайдера, заголовки, таймаут и ретраи. */
+  private async post(
+    target: string,
+    messageId: string,
+    content: { subject: string; message: string; plainText: string },
+  ): Promise<EmailSendResult> {
     if (!this.apiKey || !this.fromEmail) {
       this.logger.error(
         'DASHAMAIL_API_KEY / DASHAMAIL_FROM_EMAIL is not configured — email delivery is unavailable',
@@ -97,16 +126,15 @@ export class DashaMailEmailSender implements EmailSender {
       return { accepted: false, reason: 'not-configured' };
     }
 
-    const bodies = buildBodies(params.purpose, params.code);
     const body = {
-      message_id: params.messageId,
+      message_id: messageId,
       from_email: this.fromEmail,
       from_name: this.fromName,
-      to: params.target,
-      subject: subjectFor(params.purpose),
+      to: target,
+      subject: content.subject,
       // Провайдер требует HTML-версию (`message`) + plain-text (`plain_text`).
-      message: bodies.message,
-      plain_text: bodies.plain_text,
+      message: content.message,
+      plain_text: content.plainText,
     };
 
     for (let attempt = 1; attempt <= DashaMailEmailSender.MAX_ATTEMPTS; attempt += 1) {
@@ -119,7 +147,7 @@ export class DashaMailEmailSender implements EmailSender {
             headers: {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
-              // Служебное письмо с кодом: отписка получателя не должна его блокировать.
+              // Служебное письмо: отписка получателя не должна его блокировать.
               'X-Dashamail-Unsub-Ignore': '1',
             },
           },
@@ -130,7 +158,7 @@ export class DashaMailEmailSender implements EmailSender {
         // Незнакомая форма ответа — тоже отказ: иначе «успех» будет ложным и код не уедет.
         if (errCode === undefined) {
           this.logger.error(
-            `dashamail returned an unexpected response shape message_id=${params.messageId}`,
+            `dashamail returned an unexpected response shape message_id=${messageId}`,
           );
           return { accepted: false, reason: 'provider-error' };
         }
@@ -138,7 +166,7 @@ export class DashaMailEmailSender implements EmailSender {
         if (errCode !== 0) {
           // 34 — домен отправителя не подтверждён (DKIM/SPF), 673 — адрес отписан/пожаловался.
           this.logger.error(
-            `dashamail rejected message_id=${params.messageId}: err_code=${errCode} ${data.response?.msg?.text ?? ''}`,
+            `dashamail rejected message_id=${messageId}: err_code=${errCode} ${data.response?.msg?.text ?? ''}`,
           );
           return { accepted: false, reason: 'provider-error' };
         }
@@ -151,7 +179,7 @@ export class DashaMailEmailSender implements EmailSender {
 
         if (!retriable || attempt === DashaMailEmailSender.MAX_ATTEMPTS) {
           this.logger.error(
-            `dashamail send failed message_id=${params.messageId} (attempt ${attempt}): ${describe(cause)}`,
+            `dashamail send failed message_id=${messageId} (attempt ${attempt}): ${describe(cause)}`,
           );
           return { accepted: false, reason: 'provider-error' };
         }

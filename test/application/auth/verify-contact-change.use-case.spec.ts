@@ -12,6 +12,7 @@ import { ContactChangeRecord } from '../../../src/modules/auth/domain/ports/chan
 import { ChangeTokenStore } from '../../../src/modules/auth/domain/ports/change-token-store.port';
 import { IdentityAdminPort } from '../../../src/modules/auth/domain/ports/identity-admin.port';
 import { RevokeUserAccessUseCase } from '../../../src/modules/auth/application/use-cases/revoke-user-access/revoke-user-access.use-case';
+import { ContactChangeNotifier } from '../../../src/shared/application/contact-change-notifier.interface';
 import { UserNotFoundError } from '../../../src/shared/domain/errors/user-not-found.error';
 
 const KC_ID = 'f5c78c0c-0d91-49e8-bd4e-d3c02295ddcf';
@@ -54,6 +55,7 @@ describe('VerifyContactChangeUseCase (ADR-0017, шаг 2)', () => {
   let contacts: jest.Mocked<UserContacts>;
   let identityAdmin: jest.Mocked<IdentityAdminPort>;
   let revokeAccess: jest.Mocked<RevokeUserAccessUseCase>;
+  let notifier: jest.Mocked<ContactChangeNotifier>;
   let useCase: VerifyContactChangeUseCase;
 
   beforeEach(() => {
@@ -90,6 +92,9 @@ describe('VerifyContactChangeUseCase (ADR-0017, шаг 2)', () => {
     revokeAccess = {
       execute: jest.fn(),
     } as unknown as jest.Mocked<RevokeUserAccessUseCase>;
+    notifier = {
+      notifyChanged: jest.fn(),
+    } as unknown as jest.Mocked<ContactChangeNotifier>;
 
     useCase = new VerifyContactChangeUseCase(
       changes,
@@ -97,6 +102,7 @@ describe('VerifyContactChangeUseCase (ADR-0017, шаг 2)', () => {
       contacts,
       identityAdmin,
       revokeAccess,
+      notifier,
     );
   });
 
@@ -160,6 +166,12 @@ describe('VerifyContactChangeUseCase (ADR-0017, шаг 2)', () => {
     });
     expect(changes.markApplied).toHaveBeenCalledWith('tok');
     expect(result.user.email).toBe('new@example.com');
+    expect(notifier.notifyChanged).toHaveBeenCalledWith({
+      keycloakId: KC_ID,
+      channel: 'email',
+      newValue: 'new@example.com',
+      oldValue: 'old@example.com',
+    });
 
     // Порядок координатора: отзыв доступа строго ДО применения.
     const revokeOrder = revokeAccess.execute.mock.invocationCallOrder[0];
@@ -186,6 +198,17 @@ describe('VerifyContactChangeUseCase (ADR-0017, шаг 2)', () => {
       phone: '+79990000122',
       phoneVerified: true,
     });
+  });
+
+  it('падение уведомления не превращает успешную смену в ошибку (best-effort)', async () => {
+    notifier.notifyChanged.mockRejectedValue(new Error('smtp down'));
+
+    const result = await useCase.execute(
+      new VerifyContactChangeCommand(KC_ID, 'tok', '123456', '654321'),
+    );
+
+    expect(result.user.email).toBe('new@example.com');
+    expect(changes.markApplied).toHaveBeenCalledWith('tok');
   });
 
   it('Keycloak не принял после ретраев → компенсация: откат shadow и 503 с живым changeToken', async () => {

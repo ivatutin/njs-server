@@ -15,6 +15,8 @@ import { OTP_RATE_LIMITER } from './domain/ports/otp-rate-limiter.port';
 import { PHONE_CALL_PROVIDER, PhoneCallProvider } from './domain/ports/phone-call-provider.port';
 import { SMS_SENDER } from './domain/ports/sms-sender.port';
 import { EMAIL_SENDER, EmailSender } from './domain/ports/email-sender.port';
+import { CONTACT_CHANGE_NOTIFIER } from '@shared/application/contact-change-notifier.interface';
+import { ContactChangeNotifierAdapter } from './application/services/contact-change-notifier.adapter';
 import { VERIFICATION_TOKEN_ISSUER } from './domain/ports/verification-token.port';
 import { ConsolePhoneCallProvider } from './infrastructure/call/console-phone-call.provider';
 import { SmsRuCallcheckProvider } from './infrastructure/call/smsru-callcheck.provider';
@@ -64,6 +66,9 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
     // Shared-порт для внутренних сценариев (смена контакта): старт челленджа + проверка по (target, purpose)
     OtpChallengesAdapter,
     { provide: OTP_CHALLENGES, useExisting: OtpChallengesAdapter },
+    // Уведомления о смене контакта (ADR-0017 §6): те же SMS/email-каналы, best-effort
+    ContactChangeNotifierAdapter,
+    { provide: CONTACT_CHANGE_NOTIFIER, useExisting: ContactChangeNotifierAdapter },
     // DEV: код печатается в лог; в проде — Twilio/SMS.ru тем же токеном
     { provide: SMS_SENDER, useClass: ConsoleSmsSender },
     // Звонковый канал: боевой SMS.ru callcheck либо dev-заглушка (fail-closed в проде)
@@ -91,6 +96,6 @@ import { SmsruCallbackController } from './interfaces/http/smsru-callback.contro
       ): EmailSender => (config.get<string>('dashamail.apiKey') ? dashamail : dev),
     },
   ],
-  exports: [VERIFICATION_TOKEN_CONSUMER, OTP_CHALLENGES],
+  exports: [VERIFICATION_TOKEN_CONSUMER, OTP_CHALLENGES, CONTACT_CHANGE_NOTIFIER],
 })
 export class OtpModule {}

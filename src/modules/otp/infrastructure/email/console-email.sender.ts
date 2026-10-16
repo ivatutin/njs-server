@@ -38,4 +38,23 @@ export class ConsoleEmailSender implements EmailSender {
     );
     return { accepted: true };
   }
+
+  async sendMessage(params: {
+    target: string;
+    subject: string;
+    message: string;
+    plainText: string;
+    messageId: string;
+  }): Promise<EmailSendResult> {
+    if (this.nodeEnv === 'production') {
+      this.logger.error('DASHAMAIL_API_KEY is not configured — email delivery is unavailable');
+      return { accepted: false, reason: 'not-configured' };
+    }
+
+    this.logger.log(
+      `[dev-email] subject=${params.subject} to=${maskEmail(params.target)} ` +
+        `message_id=${params.messageId}`,
+    );
+    return { accepted: true };
+  }
 }

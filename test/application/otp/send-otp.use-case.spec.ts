@@ -30,7 +30,7 @@ describe('SendOtpUseCase', () => {
       deleteById: jest.fn(),
     };
     hasher = { hash: jest.fn().mockResolvedValue('argon2id$hash'), verify: jest.fn() };
-    sms = { send: jest.fn().mockResolvedValue(undefined) };
+    sms = { send: jest.fn().mockResolvedValue(undefined), sendText: jest.fn() };
     useCase = new SendOtpUseCase(rateLimiter, contacts, store, hasher, sms);
   });
 

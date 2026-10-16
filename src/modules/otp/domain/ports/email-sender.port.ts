@@ -23,6 +23,18 @@ export interface EmailSender {
     purpose: OtpPurpose;
     messageId: string;
   }): Promise<EmailSendResult>;
+
+  /**
+   * Служебное письмо без кода (например, уведомление «контакт изменён», ADR-0017 §6):
+   * готовые `subject` и тело приходят от вызывающего, формат письма здесь не собирается.
+   */
+  sendMessage(params: {
+    target: string;
+    subject: string;
+    message: string;
+    plainText: string;
+    messageId: string;
+  }): Promise<EmailSendResult>;
 }
 
 export interface EmailSendResult {
