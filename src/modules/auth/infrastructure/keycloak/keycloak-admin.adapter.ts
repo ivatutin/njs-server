@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ContactAlreadyExistsError } from '@shared/domain/errors/contact-already-exists.error';
+import { UserNotFoundError } from '@shared/domain/errors/user-not-found.error';
 import { PasswordPolicyViolationError } from '../../domain/errors/password-policy-violation.error';
 import {
   EmailVerificationEvent,
@@ -167,21 +168,37 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     phone?: string | null;
     phoneVerified?: boolean;
   }): Promise<void> {
-    const representation: Record<string, unknown> = {};
-
-    if (params.email !== undefined) representation.email = params.email;
-    if (params.emailVerified !== undefined) representation.emailVerified = params.emailVerified;
-
-    // Телефон живёт в наших атрибутах: Keycloak не знает про `phoneNumber`, но хранит его,
-    // пока включён `unmanagedAttributePolicy = ENABLED` (DEPLOYMENT §7 п.8).
-    if (params.phone !== undefined || params.phoneVerified !== undefined) {
-      representation.attributes = {
-        ...(params.phone !== undefined ? { phoneNumber: [params.phone] } : {}),
-        ...(params.phoneVerified !== undefined
-          ? { phoneVerified: [String(params.phoneVerified)] }
-          : {}),
-      };
+    // ВАЖНО: `PUT /users/{id}` затирает поля, которых нет в теле — на живой приёмке это очистило
+    // `email` при смене телефона, и password-grant начал отвечать «Account is not fully set up».
+    // Поэтому сначала читаем текущее состояние и отправляем его вместе с изменением.
+    const current = await this.client.findUserById(params.keycloakId);
+    if (!current) {
+      throw new UserNotFoundError(`keycloakId=${params.keycloakId}`);
     }
+
+    const attributes: Record<string, string[]> = { ...(current.attributes ?? {}) };
+    // Удаление контакта (`null`) этой правкой не поддерживается: смена контакта всегда задаёт значение.
+    if (params.phone !== undefined && params.phone !== null) {
+      attributes.phoneNumber = [params.phone];
+    }
+    if (params.phoneVerified !== undefined) {
+      attributes.phoneVerified = [String(params.phoneVerified)];
+    }
+
+    // `PUT /users/{id}` — **полная замена** представления: всё, чего нет в теле, затирается
+    // (на приёмке это снесло `email`, `firstName` и `lastName` → password-grant отвечал
+    // «Account is not fully set up»). Поэтому переносим текущее состояние и меняем только контакт.
+    const representation: Record<string, unknown> = {
+      email: params.email !== undefined ? params.email : (current.email ?? null),
+      emailVerified:
+        params.emailVerified !== undefined
+          ? params.emailVerified
+          : (current.emailVerified ?? false),
+      firstName: current.firstName ?? null,
+      lastName: current.lastName ?? null,
+      enabled: current.enabled ?? true,
+      attributes,
+    };
 
     try {
       await this.client.updateUser(params.keycloakId, representation);
