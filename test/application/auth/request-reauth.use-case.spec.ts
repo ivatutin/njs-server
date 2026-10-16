@@ -23,6 +23,8 @@ describe('RequestReauthUseCase', () => {
       findById: jest.fn().mockResolvedValue({
         keycloakId: KC_ID,
         username: '+79990000110',
+        phone: '+79990000110',
+        phoneVerified: true,
         email: null,
         emailVerified: false,
         firstName: 'Иван',

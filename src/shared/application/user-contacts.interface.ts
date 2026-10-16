@@ -41,6 +41,16 @@ export interface UserContacts {
   isContactTaken(params: { email?: string | null; phone?: string | null }): Promise<boolean>;
 
   /**
+   * Страница пользователей для сверки shadow ↔ Keycloak (drift-детектор, ADR-0017 §3):
+   * keyset-пагинация по `id` в возрастающем порядке. Отдаём снимки, а не сущности, — детектору
+   * не нужна доменная модель, ему нужно сравнить состояние двух систем.
+   */
+  listForReconciliation(params: {
+    afterId?: string | null;
+    limit: number;
+  }): Promise<UserContactsSnapshot[]>;
+
+  /**
    * Компенсация частичного сбоя (ADR-0017 §3): возвращает контакты к снимку «до» вместе с метками
    * подтверждения. Это **repair**-путь, а не доменная операция, поэтому вызывается только flow'ом
    * `contact-change` при исчерпании ретраев к Keycloak.

@@ -11,6 +11,8 @@ export interface IdentityAdminUser {
   username?: string | null;
   /** Телефон из атрибутов Keycloak (`phoneNumber`), E.164. */
   phone?: string | null;
+  /** Наш атрибут `phoneVerified`: подтверждён ли телефон (ADR-0015). */
+  phoneVerified: boolean;
   email: string | null;
   emailVerified: boolean;
   firstName: string | null;

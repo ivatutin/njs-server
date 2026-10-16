@@ -39,6 +39,7 @@ import { SignUpEmailUseCase } from './application/use-cases/sign-up-email/sign-u
 import { ResendVerifyEmailUseCase } from './application/use-cases/resend-verify-email/resend-verify-email.use-case';
 import { ForgotPasswordUseCase } from './application/use-cases/forgot-password/forgot-password.use-case';
 import { RequestContactChangeUseCase } from './application/use-cases/request-contact-change/request-contact-change.use-case';
+import { ContactDriftDetectorService } from './application/services/contact-drift-detector.service';
 import { VerifyContactChangeUseCase } from './application/use-cases/verify-contact-change/verify-contact-change.use-case';
 import { CancelContactChangeUseCase } from './application/use-cases/cancel-contact-change/cancel-contact-change.use-case';
 import { RedisPasswordResetRateLimiter } from './infrastructure/rate-limit/redis-password-reset.rate-limiter';
@@ -80,6 +81,8 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     RequestContactChangeUseCase,
     VerifyContactChangeUseCase,
     CancelContactChangeUseCase,
+    // Долг после Auth v1 (ADR-0017 §3): сверка контактов shadow ↔ Keycloak + идемпотентная самопочинка
+    ContactDriftDetectorService,
     SignUpPhoneUseCase,
     SignInPhoneUseCase,
     HandleCibaChannelRequestUseCase,

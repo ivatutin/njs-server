@@ -10,6 +10,8 @@ describe('ResendVerifyEmailUseCase', () => {
     keycloakId: 'kc-1',
     email: 'new@example.com',
     emailVerified: false,
+    phone: null,
+    phoneVerified: false,
     firstName: null,
     lastName: null,
   };

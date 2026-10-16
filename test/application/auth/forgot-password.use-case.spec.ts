@@ -12,6 +12,8 @@ describe('ForgotPasswordUseCase', () => {
     keycloakId: 'kc-1',
     email: 'user@example.com',
     emailVerified: true,
+    phone: null,
+    phoneVerified: false,
     firstName: null,
     lastName: null,
   };

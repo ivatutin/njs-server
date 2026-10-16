@@ -177,12 +177,13 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
     }
 
     const attributes: Record<string, string[]> = { ...(current.attributes ?? {}) };
-    // Удаление контакта (`null`) этой правкой не поддерживается: смена контакта всегда задаёт значение.
-    if (params.phone !== undefined && params.phone !== null) {
-      attributes.phoneNumber = [params.phone];
+    // `null` = «телефона нет»: чистим наши атрибуты. Так drift-детектор приводит Keycloak к shadow,
+    // а обычная смена контакта (`phone` + `phoneVerified: true`) ведёт себя как раньше.
+    if (params.phone !== undefined) {
+      attributes.phoneNumber = params.phone === null ? [] : [params.phone];
     }
     if (params.phoneVerified !== undefined) {
-      attributes.phoneVerified = [String(params.phoneVerified)];
+      attributes.phoneVerified = params.phoneVerified ? ['true'] : [];
     }
 
     // `PUT /users/{id}` — **полная замена** представления: всё, чего нет в теле, затирается
@@ -247,6 +248,7 @@ export class KeycloakAdminAdapter implements IdentityAdminPort {
       keycloakId: user.id,
       username: user.username ?? null,
       phone: user.attributes?.phoneNumber?.[0] ?? null,
+      phoneVerified: user.attributes?.phoneVerified?.[0] === 'true',
       email: user.email ?? null,
       emailVerified: user.emailVerified === true,
       firstName: user.firstName ?? null,

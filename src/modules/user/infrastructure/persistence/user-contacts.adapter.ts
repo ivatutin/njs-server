@@ -52,6 +52,18 @@ export class UserContactsAdapter implements UserContacts {
     return row ? toSnapshot(UserMapper.toDomain(row)) : null;
   }
 
+  async listForReconciliation(params: {
+    afterId?: string | null;
+    limit: number;
+  }): Promise<UserContactsSnapshot[]> {
+    const rows = await this.prisma.user.findMany({
+      take: params.limit,
+      orderBy: { id: 'asc' },
+      ...(params.afterId ? { cursor: { id: params.afterId }, skip: 1 } : {}),
+    });
+    return rows.map((row) => toSnapshot(UserMapper.toDomain(row)));
+  }
+
   async isContactTaken(params: { email?: string | null; phone?: string | null }): Promise<boolean> {
     const email = params.email ? Email.create(params.email).toString() : null;
     const phone = params.phone ? Phone.create(params.phone).getValue() : null;

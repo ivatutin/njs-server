@@ -32,6 +32,10 @@ const envSchema = z.object({
   DASHAMAIL_FROM_EMAIL: z.string().optional().default(''),
   DASHAMAIL_FROM_NAME: z.string().optional().default('Video Service'),
   DASHAMAIL_API_BASE_URL: z.string().url().optional().default('https://api.dashamail.com'),
+  // Drift-детектор контактов shadow ↔ Keycloak (ADR-0017 §3): сверка и идемпотентная самопочинка
+  CONTACT_DRIFT_DETECTOR_ENABLED: z.enum(['true', 'false']).optional().default('true'),
+  CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS: z.coerce.number().int().positive().default(1800),
+  CONTACT_DRIFT_HEAL_ENABLED: z.enum(['true', 'false']).optional().default('true'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
