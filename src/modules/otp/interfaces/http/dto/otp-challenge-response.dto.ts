@@ -1,9 +1,14 @@
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+
 /** Ответ `POST /auth/otp/send` (контракт v1.0). `target` — замаскированный. */
-export class OtpChallengeResponseDto {
-  challengeId: string;
-  channel: 'phone';
-  target: string;
-  expiresAt: string;
-  cooldownSeconds: number;
-  codeLength: number;
-}
+export const OtpChallengeResponseSchema = z.object({
+  challengeId: z.string(),
+  channel: z.literal('phone'),
+  target: z.string(),
+  expiresAt: z.string(),
+  cooldownSeconds: z.number(),
+  codeLength: z.number(),
+});
+
+export class OtpChallengeResponseDto extends createZodDto(OtpChallengeResponseSchema) {}

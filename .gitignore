@@ -10,3 +10,8 @@ coverage/
 .qodo/
 
 /src/generated/prisma
+
+# Agent-конфиги: рабочие команды/skills/settings.json — в git, локальное состояние и личные настройки — здесь
+# (решение владельца 16.10.2026; shared/conventions.md, «Дополнительно принято 16.10.2026», п. 4)
+.claude/settings.local.json
+.clinerules/inbox-state.json

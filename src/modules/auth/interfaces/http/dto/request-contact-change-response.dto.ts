@@ -1,12 +1,18 @@
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { RequestContactChangeResult } from '../../../application/use-cases/request-contact-change/request-contact-change.use-case';
 
 /** Ответ `POST /users/me/contact-change/request` (контракт v1.3): 201. */
-export class RequestContactChangeResponseDto {
-  changeToken: string;
-  requiresOldChallenge: boolean;
-  oldChallengeId: string | null;
-  newChallengeId: string;
-}
+export const RequestContactChangeResponseSchema = z.object({
+  changeToken: z.string(),
+  requiresOldChallenge: z.boolean(),
+  oldChallengeId: z.string().nullable(),
+  newChallengeId: z.string(),
+});
+
+export class RequestContactChangeResponseDto extends createZodDto(
+  RequestContactChangeResponseSchema,
+) {}
 
 /** Маппер ответа `request` (класс-обёртка, чтобы контракт был в одном месте). */
 export function toRequestContactChangeResponse(

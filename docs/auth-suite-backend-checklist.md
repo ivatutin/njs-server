@@ -600,6 +600,13 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
       Без него живой сценарий «регистрация → клик по ссылке → active» не пройти (письмо теряется, хотя API отвечает).
       Наши каналы в dev ключей не требуют: `ConsoleEmailSender` (код в лог) и dev-SMS (`[dev-sms]`); звонковый канал
       выключен (`SMSRU_CALLCHECK_ENABLED=false`). Отмечено координатору — `questions/dev-stand-mailpit.md`.
+- [x] **Бизнес-роли реалма для RBAC (16.10.2026):** в реалме `app` созданы роли `admin` и `user`; для приёмки заведены
+      `admin-dev@example.com` (роль `admin`) и `user-dev@example.com` (роль `user`) — пароль передан координатору
+      отчётом `questions/batches-1-2-done.md` (в репозиторий не пишу). Шаги повторного подъёма — `docs/LOCAL_DEV.md`,
+      раздел «Один раз: бизнес-роли реалма (для RBAC)». Роль действует после нового входа/refresh (она берётся из JWT).
+- [x] **Спящие коды `ContactNotFound` / `ContactAlreadyVerified`:** замысел (Phase 4 verify-contact) сознательно не
+      реализован — «уже подтверждён» в домене идемпотентен (silent no-op), «не найден» покрыт `UserNotFound` /
+      `InvalidContacts`. Оставлены спящими; активировать — только решением координатора (это смена поведения).
 - [x] ADR-0019 «Канал доставки email» (`docs/adr/0019-email-delivery-channel.md`)
 - [x] подтверждён штатный путь перевыпуска кода: **`cancel` → `request`** (повторный `request` при активном change → `409
       ContactChangeAlreadyPending`); `OTP_CHALLENGES.verify` работает по `(target, purpose)`, поэтому перевыпуск челленджа
@@ -628,5 +635,19 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 (звонковый канал включается ключом `SMSRU_CALLCHECK_ENABLED`) · **Phase 4 ✅ — все семь эндпоинтов: трио
 `contact-change` + `logout-all`**; **Phase 3 — вне объёма Auth v1** (решение координатора: соц-вход отложен).
 Итого: **16 из 19** эндпоинтов реализованы (v1.4 добавил `logout-all`); оставшиеся 3 — Phase 3.
+
+**Качество API-документации (16.10.2026, по пакету задач фронта):** у response-DTO не было `properties` в Swagger —
+они были обычными TS-классами, а `@ApiProperty` в `src` не использовался ни разу. Перевёл **10 response-DTO** на Zod +
+`createZodDto` (единый стиль с request-DTO): auth 6 (`UserDto`, `TokenPairResponseDto`, `ReauthResponseDto`,
+`SignUpEmailResponseDto`, `SignUpPhoneResponseDto`, `RequestContactChangeResponseDto`), otp 4 (`OtpChallengeResponseDto`,
+`OtpVerifiedResponseDto`, `PhoneCallChallengeResponseDto`, `PhoneCallStatusResponseDto` — состояние берётся из домена
+через `z.enum(CALL_STATUSES)`), user 1 (`UserResponseDto`). Проверено живьём: `GET /api/v1/docs-json` отдаёт заполненные
+`properties` у всех десяти схем (включая `method` и `otpFallback`, из-за которых фронту приходилось читать код).
+Конструирования DTO в коде нет (`new *Dto(` — 0), поэтому поведение не изменилось: `tsc` 0, 61 suite / 348 тестов.
+
+**Вход при незакрытом `VERIFY_EMAIL` (проверено живьём 16.10.2026):** `POST /auth/sign-in` отвечает **`401
+InvalidCredentials`** (тело — единый контрактный ответ), ответ Keycloak «Account is not fully set up» наружу не проходит
+(анти-энумерация), в логе остаётся внутренняя строка `signIn failed for <email>`. Фронт строил UX на этом
+предположении — оно верно.
 
 **Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в `auth-roadmap.md` репозитория фронта, § «Когда уходим от MSW»).

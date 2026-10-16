@@ -1,6 +1,11 @@
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+
 /** Ответ `POST /auth/otp/verify` (контракт v1.0). */
-export class OtpVerifiedResponseDto {
-  challengeId: string;
-  verified: true;
-  verificationToken: string;
-}
+export const OtpVerifiedResponseSchema = z.object({
+  challengeId: z.string(),
+  verified: z.literal(true),
+  verificationToken: z.string(),
+});
+
+export class OtpVerifiedResponseDto extends createZodDto(OtpVerifiedResponseSchema) {}
