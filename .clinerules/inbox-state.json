@@ -12,10 +12,10 @@
     ],
     "contractMirror": "6dc5638406d9bd12e3086859c6548c2692585e68e0abdeb9e77f81923aa62451 — совпал",
     "todo": [
-      "drift-detector условие 1: флаги verified — «true побеждает», дочинять отставшую сторону (в т.ч. shadow)",
-      "drift-detector: событие contact_drift_flag_forwarded + обязательный тест «KC впереди по emailVerified»",
-      "DEPLOYMENT §7 п.13: предупреждение об откате ручных правок в Account Console + прод report-only первым прогоном",
-      "предложение к контракту: POST /users/me/logout-all -> 204 через RevokeUserAccessUseCase(reason='logout-everywhere')"
+      "I4: админский путь восстановления для passwordless-тупика — единственный оставшийся код-долг",
+      "прод-шаги (значения ждём от владельца): DashaMail домен+DKIM/SPF+ключ+webhook+realm SMTP; SMS.ru api_id",
+      "ждём ответа координатора: форма logout-all (reauth?) + верификация условия 1 у детектора",
+      "CI-прогон последнего коммита (браузер локально недоступен)"
     ]
   }
 }

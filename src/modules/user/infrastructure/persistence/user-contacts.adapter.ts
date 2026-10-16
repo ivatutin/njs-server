@@ -98,6 +98,41 @@ export class UserContactsAdapter implements UserContacts {
     });
   }
 
+  /**
+   * Дочиняет флаг подтверждения в shadow (ADR-0017 §3, ред. 4: «флаги монотонны, true побеждает»).
+   *
+   * Путь тот же, что у события `auth.email-verified` (`OnEmailVerifiedHandler`): доменный
+   * `verifyEmail()` / `verifyPhone()` (идемпотентны, `pending_verification` → `active`) + публикация
+   * доменных событий после записи. Нужен, когда Keycloak подтвердил контакт сам (клик по ссылке),
+   * а событие до нас не доехало — тогда shadow навсегда остался бы неподтверждённым.
+   */
+  async markVerified(params: {
+    keycloakId: string;
+    channel: 'email' | 'phone';
+  }): Promise<UserContactsSnapshot | null> {
+    const row = await this.prisma.user.findUnique({ where: { keycloakId: params.keycloakId } });
+    if (!row) return null;
+
+    const user = UserMapper.toDomain(row);
+    const alreadyVerified =
+      params.channel === 'email' ? user.isEmailVerified() : user.isPhoneVerified();
+    const hasContact =
+      params.channel === 'email' ? user.email !== null : user.phone.getValue() !== null;
+    // Дочинять нечего: контакта в канале нет (домен бросил бы) или он уже подтверждён.
+    if (alreadyVerified || !hasContact) return null;
+
+    if (params.channel === 'email') user.verifyEmail();
+    else user.verifyPhone();
+
+    const data = UserMapper.toPersistence(user);
+    await this.prisma.user.update({ where: { id: data.id }, data });
+
+    const events = user.pullDomainEvents();
+    if (events.length > 0) await this.eventBus.publishAll(events);
+
+    return toSnapshot(user);
+  }
+
   async applyVerifiedChange(params: {
     keycloakId: string;
     email?: string | null;

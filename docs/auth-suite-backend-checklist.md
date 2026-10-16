@@ -531,23 +531,33 @@ contact-change notified kc=fbfdc201... channel=phone
 и не превращает успех в `503`). Побочно приёмка подтвердила работу лимитов: `request` отдавал `422 OtpRateLimited`
 с `retryAfter` на кулдаун контакта, per-IP лимит и личный лимит смен (10/сутки) — то есть защита от перебора живая.
 
-**Drift-детектор контактов shadow ↔ Keycloak — ✅ реализован (16.10.2026, ADR-0017 §3):**
+**Drift-детектор контактов shadow ↔ Keycloak — ✅ реализован и принят (16.10.2026, ADR-0017 §3, §3a):**
 ```
 ContactDriftDetectorService (setInterval в OnModuleInit, как KeycloakEventListenerService — без внешнего планировщика):
-  сверка → расхождение → Keycloak приводится к shadow полной записью контактов (идемпотентно)
   keyset-пагинация по id, страницами по 100; per-user ошибки не роняют проход
+  значения контактов (email/phone): Keycloak приводится к shadow — shadow источник правды
+  флаги подтверждения: монотонны, «true побеждает» — дочиняется отставшая сторона, в том числе shadow
+    (KC=true/shadow=false → markVerified в shadow; иначе детектор откатывал бы честную верификацию)
+  в Keycloak пишутся только разошедшиеся каналы (PUT — полная замена, остальное переносит read-modify-write)
   report-only режим: CONTACT_DRIFT_HEAL_ENABLED=false — только сообщаем, не пишем
-  логи: contact_drift_detected / _healed / _heal_failed / _identity_missing + сводка прохода (маски, без PII)
+  логи: contact_drift_detected / _healed / _flag_forwarded / _heal_failed / _flag_forward_failed / _identity_missing
   env: CONTACT_DRIFT_DETECTOR_ENABLED=true, CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS=1800, CONTACT_DRIFT_HEAL_ENABLED=true
 ```
-Тесты: `test/application/auth/contact-drift-detector.service.spec.ts` — 9 кейсов (сверка, дрейф в обе стороны,
-report-only, отсутствие identity в KC, устойчивость к ошибкам починки, пагинация курсором, таймер).
-Направление починки — **shadow → Keycloak**: shadow источник правды для контактов (уникальность телефона держим мы).
-`identity_missing` автоматически не лечим — только сообщаем (создание/удаление пользователей вне полномочий детектора).
+Тесты: `test/application/auth/contact-drift-detector.service.spec.ts` — 14 кейсов (сверка, дрейф значений в обе
+стороны, **Keycloak впереди по флагу → дочиняем shadow**, дрейф значения → флаг из shadow, report-only, отсутствие
+identity в KC, устойчивость к ошибкам починки и дочинки флага, пагинация курсором, таймер).
+**Живая приёмка 16.10.2026** (на стенде, интервал 20 с): 1-й проход `scanned=6 drifted=4 healed=2 failed=0` — нашёлся
+дрейф, который специально не создавали (флаги `emailVerified`), вылечен; 2-й проход `drifted=2 healed=0` —
+идемпотентность; `identity_missing` (2 dev-артефакта) — вручную. Правило «флаги — объединение» добавлено по ревью
+координатора (условие 1); порядок включения на проде (первый прогон report-only) — `DEPLOYMENT.md` §7 п.13.
 
 **Долги (после Auth v1):** админский путь восстановления для passwordless-тупика (I4). Остальное закрыто:
 drift-детектор — реализован (см. блок выше), канал доставки OTP-кода на email — ADR-0019, ссылка на вопрос координатору —
 `docs/auth/sessions/njs-server/questions/email-otp.md`.
+**Предложение к контракту (отправлено 16.10.2026):** «выход на всех устройствах» — `POST /users/me/logout-all` → `204`
+через `RevokeUserAccessUseCase` с `reason='logout-everywhere'`; канонический файл —
+`docs/contract-proposals/auth-v1.4-logout-all.md`, отправлено координатору —
+`docs/auth/sessions/njs-server/questions/logout-all-contract-proposal.md` (ждём решения: форма, `X-Reauth-Token`).
 
 **Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
 shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →

@@ -60,6 +60,7 @@ function build(config: Record<string, unknown> = {}): {
     find: jest.fn(),
     listForReconciliation: jest.fn().mockResolvedValue([shadow()]),
     isContactTaken: jest.fn(),
+    markVerified: jest.fn().mockResolvedValue(null),
     applyVerifiedChange: jest.fn(),
     rollback: jest.fn(),
   } as unknown as jest.Mocked<UserContacts>;
@@ -88,17 +89,17 @@ describe('ContactDriftDetectorService (ADR-0017 §3)', () => {
     expect(identityAdmin.updateContacts).not.toHaveBeenCalled();
   });
 
-  it('Keycloak отстал от shadow: пишем полное состояние контактов', async () => {
+  it('Keycloak отстал от shadow по телефону: пишем только разошедшийся канал', async () => {
     const { detector, identityAdmin } = build();
     identityAdmin.findById.mockResolvedValue(identity({ phone: null, phoneVerified: false }));
 
     const summary = await detector.scanOnce();
 
     expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 1, failed: 0 });
+    // Email совпал и подтверждён с обеих сторон — его не передаём: `PUT /users/{id}` — полная замена,
+    // остальное адаптер переносит сам (read-modify-write).
     expect(identityAdmin.updateContacts).toHaveBeenCalledWith({
       keycloakId: KC_ID,
-      email: 'user@example.com',
-      emailVerified: true,
       phone: '+79990000124',
       phoneVerified: true,
     });
@@ -115,20 +116,88 @@ describe('ContactDriftDetectorService (ADR-0017 §3)', () => {
     expect(summary.drifted).toBe(1);
     expect(identityAdmin.updateContacts).toHaveBeenCalledWith({
       keycloakId: KC_ID,
-      email: 'user@example.com',
-      emailVerified: true,
       phone: null,
       phoneVerified: false,
     });
   });
 
-  it('расходится только флаг подтверждения письма — тоже лечим', async () => {
-    const { detector, identityAdmin } = build();
+  it('Keycloak отстал по флагу подтверждения письма: дочиняем флаг в Keycloak', async () => {
+    const { detector, identityAdmin, contacts } = build();
     identityAdmin.findById.mockResolvedValue(identity({ emailVerified: false }));
 
     const summary = await detector.scanOnce();
 
     expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 1, failed: 0 });
+    expect(identityAdmin.updateContacts).toHaveBeenCalledWith({
+      keycloakId: KC_ID,
+      emailVerified: true,
+    });
+    expect(contacts.markVerified).not.toHaveBeenCalled();
+  });
+
+  // --- ред. 4 (ADR-0017 §3a): флаги монотонны, «true побеждает» ---
+
+  it('Keycloak впереди по emailVerified (событие потерялось): дочиняем shadow, Keycloak не трогаем', async () => {
+    const { detector, identityAdmin, contacts } = build();
+    contacts.listForReconciliation.mockResolvedValue([shadow({ emailVerifiedAt: null })]);
+    contacts.markVerified.mockResolvedValue(shadow());
+
+    const summary = await detector.scanOnce();
+
+    expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 1, failed: 0 });
+    expect(contacts.markVerified).toHaveBeenCalledWith({ keycloakId: KC_ID, channel: 'email' });
+    // Флаг уже стоит в Keycloak: писать туда нечего — иначе откатили бы честную верификацию.
+    expect(identityAdmin.updateContacts).not.toHaveBeenCalled();
+  });
+
+  it('Keycloak впереди по phoneVerified: дочиняем shadow по каналу phone', async () => {
+    const { detector, identityAdmin, contacts } = build();
+    contacts.listForReconciliation.mockResolvedValue([shadow({ phoneVerifiedAt: null })]);
+    contacts.markVerified.mockResolvedValue(shadow());
+
+    const summary = await detector.scanOnce();
+
+    expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 1, failed: 0 });
+    expect(contacts.markVerified).toHaveBeenCalledWith({ keycloakId: KC_ID, channel: 'phone' });
+    expect(identityAdmin.updateContacts).not.toHaveBeenCalled();
+  });
+
+  it('значение разошлось: пишем значение + флаг из shadow, флаг в shadow не дочиняем', async () => {
+    const { detector, identityAdmin, contacts } = build();
+    // Прежний контакт подтверждён в Keycloak, а в shadow уже новый и неподтверждённый (смена контакта).
+    identityAdmin.findById.mockResolvedValue(identity({ email: 'old@example.com' }));
+    contacts.listForReconciliation.mockResolvedValue([shadow({ emailVerifiedAt: null })]);
+
+    const summary = await detector.scanOnce();
+
+    expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 1, failed: 0 });
+    expect(identityAdmin.updateContacts).toHaveBeenCalledWith({
+      keycloakId: KC_ID,
+      email: 'user@example.com',
+      emailVerified: false,
+    });
+    // Флаг в Keycloak относится к прежнему значению — переносить его в shadow нельзя.
+    expect(contacts.markVerified).not.toHaveBeenCalled();
+  });
+
+  it('флаг дочинен параллельно (markVerified → null): проход не считает пользователя вылеченным', async () => {
+    const { detector, identityAdmin, contacts } = build();
+    contacts.listForReconciliation.mockResolvedValue([shadow({ emailVerifiedAt: null })]);
+
+    const summary = await detector.scanOnce();
+
+    expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 0, failed: 0 });
+    expect(identityAdmin.updateContacts).not.toHaveBeenCalled();
+  });
+
+  it('ошибка дочинки флага не роняет проход: считаем failed', async () => {
+    const { detector, contacts } = build();
+    contacts.listForReconciliation.mockResolvedValue([shadow({ emailVerifiedAt: null })]);
+    contacts.markVerified.mockRejectedValue(new Error('db down'));
+
+    const summary = await detector.scanOnce();
+
+    expect(summary).toEqual({ scanned: 1, drifted: 1, healed: 0, failed: 1 });
   });
 
   it('report-only (heal выключен): сообщаем, но не пишем', async () => {

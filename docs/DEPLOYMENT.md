@@ -337,12 +337,20 @@ docker compose logs -f keycloak   # дождись "started" (первый ст�
      shadow — `UPDATE "user"."users" SET ... WHERE keycloak_id = '<sub>'`;
    - после инцидента запись смены помечена `failed`: повторный `verify` **ничего не применяет**, нужен новый
      `cancel` → `request`;
-   - **drift-детектор контактов** (ADR-0017 §3) работает по таймеру в самом приложении: раз в 30 минут сверяет
-     shadow ↔ Keycloak и **приводит Keycloak к shadow** (`CONTACT_DRIFT_DETECTOR_ENABLED=true`,
-     `CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS=1800`). Починку можно выключить (`CONTACT_DRIFT_HEAL_ENABLED=false`) —
-     тогда детектор только сообщает о расхождениях, ничего не записывая; в логах его видно по маркерам
-     `contact_drift_detected` / `contact_drift_healed` / `contact_drift_heal_failed` / `contact_drift_identity_missing`
-     и по сводке прохода `contact drift scan done: scanned=… drifted=… healed=… failed=…`;
+   - **drift-детектор контактов** (ADR-0017 §3, §3a) работает по таймеру в самом приложении: раз в 30 минут сверяет
+     shadow ↔ Keycloak (`CONTACT_DRIFT_DETECTOR_ENABLED=true`, `CONTACT_DRIFT_DETECTOR_INTERVAL_SECONDS=1800`).
+     **Правило по типу поля:** значения контактов приводятся **Keycloak к shadow** (shadow — источник правды),
+     а флаги подтверждения монотонны («true побеждает») — дочиняется отставшая сторона, в том числе **shadow**
+     (маркер `contact_drift_flag_forwarded`: флаг подтвердил сам Keycloak, а событие до нас не доехало).
+     ⚠️ **Следствие для поддержки: ручная правка контакта в Account Console будет откатана** — в пределах интервала
+     (≤30 минут) детектор вернёт значение из shadow. Менять контакт нужно штатным flow `contact-change`, а не правкой
+     в Keycloak; если правка нужна срочно — сначала выключить починку (`CONTACT_DRIFT_HEAL_ENABLED=false`);
+   - **порядок включения на проде:** первый прогон — с `CONTACT_DRIFT_HEAL_ENABLED=false` (детектор только
+     сообщает о расхождениях, ничего не записывая), дать ему пройти хотя бы раз и посмотреть объём дрейфа в сводке
+     `contact drift scan done: scanned=… drifted=… healed=… failed=…`, и только потом включить починку
+     (`CONTACT_DRIFT_HEAL_ENABLED=true`). Маркеры логов: `contact_drift_detected` / `contact_drift_healed` /
+     `contact_drift_flag_forwarded` / `contact_drift_heal_failed` / `contact_drift_flag_forward_failed` /
+     `contact_drift_identity_missing` (все — с масками, без PII);
    - `contact_drift_identity_missing` (в shadow есть пользователь, в Keycloak нет) автоматически **не лечим**:
      создание/удаление пользователей вне полномочий детектора — разбирается вручную (см. выше).
 5. Впиши его в `.env` → `KEYCLOAK_CLIENT_SECRET` и перезапусти приложение:

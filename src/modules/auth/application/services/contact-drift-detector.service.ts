@@ -26,6 +26,16 @@ export interface DriftScanSummary {
   failed: number;
 }
 
+/** Что детектор собирается сделать с одним пользователем (см. `plan()`). */
+interface DriftPlan {
+  /** Разошедшиеся поля — для лога; в report-only режиме этого достаточно. */
+  fields: string[];
+  /** Запись в Keycloak: значения контактов и/или отставшие флаги. `null` — писать нечего. */
+  toKeycloak: Parameters<IdentityAdminPort['updateContacts']>[0] | null;
+  /** Каналы, где флаг подтверждён в Keycloak, а в shadow нет: дочиняем **shadow**. */
+  forward: ('email' | 'phone')[];
+}
+
 /**
  * Drift-детектор контактов shadow ↔ Keycloak (ADR-0017 §3 — долг после Auth v1).
  *
@@ -34,8 +44,18 @@ export interface DriftScanSummary {
  * shadow — источник правды для контактов (уникальность телефона держим мы), а в Keycloak контакт —
  * производное (`email` + наши атрибуты).
  *
- * Почему именно в эту сторону: смену контакта пишет наш flow, shadow — первым. Обратное означало бы,
- * что ручная правка в Account Console принимается как истина, хотя контракт этого не обещает.
+ * Почему значения именно в эту сторону: смену контакта пишет наш flow, shadow — первым. Обратное означало бы,
+ * что ручная правка в Account Console принимается как истина, хотя контракт этого не обещает (следствие
+ * для эксплуатации: ручная правка контакта в Account Console будет откатана — `DEPLOYMENT.md` §7 п.13).
+ *
+ * **Правило по типу поля (ред. 4 — по ревью координатора):**
+ * - **значения контактов** (`email`, `phone`) — всегда shadow → Keycloak;
+ * - **флаги подтверждения** (`emailVerified`, `phoneVerified`) — **монотонны, «true побеждает»**:
+ *   `emailVerified = true` ставит **сам Keycloak** (клик по ссылке из письма), а shadow узнаёт об этом
+ *   асинхронно — через поллинг Admin Events. Если значения совпали, а флаг есть только в Keycloak,
+ *   дочиняем **shadow** (`contact_drift_flag_forwarded`): иначе детектор откатывал бы честную
+ *   верификацию, и пользователь остался бы `pending_verification` навсегда. Если значения **разошлись** —
+ *   пишем в Keycloak значение и флаг из shadow: смена контакта легитимно сбрасывает подтверждение.
  *
  * Идемпотентность: повторный проход по согласованным пользователям ничего не пишет. `heal` можно
  * выключить (`CONTACT_DRIFT_HEAL_ENABLED=false`) — тогда детектор только сообщает о расхождениях.
@@ -130,49 +150,114 @@ export class ContactDriftDetectorService implements OnModuleInit, OnModuleDestro
       return;
     }
 
-    const fields = this.differences(user, identity);
-    if (fields.length === 0) return;
+    const plan = this.plan(user, identity);
+    if (plan.fields.length === 0) return;
 
     summary.drifted += 1;
-    const where = `kc=${this.short(user.keycloakId)} fields=${fields.join(',')} ${this.describe(user)}`;
+    const where = `kc=${this.short(user.keycloakId)} fields=${plan.fields.join(',')} ${this.describe(user)}`;
 
     if (!this.heal) {
       this.logger.warn(`contact_drift_detected (report-only, heal disabled) ${where}`);
       return;
     }
 
-    try {
-      // Починка = идемпотентный повтор: пишем в Keycloak полное состояние контактов из shadow.
-      await this.identityAdmin.updateContacts({
-        keycloakId: user.keycloakId,
-        email: user.email,
-        emailVerified: user.emailVerifiedAt !== null,
-        phone: user.phone,
-        phoneVerified: user.phoneVerifiedAt !== null,
-      });
+    let healed = false;
+
+    if (plan.toKeycloak) {
+      try {
+        // Идемпотентно: пишем только те каналы, которые реально разошлись (read-modify-write на стороне адаптера).
+        await this.identityAdmin.updateContacts(plan.toKeycloak);
+        healed = true;
+      } catch (err) {
+        summary.failed += 1;
+        this.logger.error(`contact_drift_heal_failed ${where}: ${(err as Error).message}`);
+      }
+    }
+
+    for (const channel of plan.forward) {
+      try {
+        // Флаг подтвердил **сам Keycloak** (клик по ссылке), а shadow об этом не узнал — событие потерялось.
+        // Флаг монотонен: дочиняем shadow, Keycloak не трогаем.
+        const updated = await this.contacts.markVerified({ keycloakId: user.keycloakId, channel });
+        if (updated) {
+          healed = true;
+          this.logger.warn(
+            `contact_drift_flag_forwarded kc=${this.short(user.keycloakId)} channel=${channel} — ` +
+              'флаг подтверждения дочинен в shadow',
+          );
+        }
+      } catch (err) {
+        summary.failed += 1;
+        this.logger.error(
+          `contact_drift_flag_forward_failed kc=${this.short(user.keycloakId)} channel=${channel}: ` +
+            `${(err as Error).message}`,
+        );
+      }
+    }
+
+    if (healed) {
       summary.healed += 1;
       this.logger.warn(`contact_drift_healed ${where}`);
-    } catch (err) {
-      summary.failed += 1;
-      this.logger.error(`contact_drift_heal_failed ${where}: ${(err as Error).message}`);
     }
   }
 
   /**
-   * Какие поля контактов расходятся. Email сравниваем в нижнем регистре (нормализация shadow),
-   * телефон — как есть: если Keycloak хранит не наш канонический E.164, это тоже полезно «починить».
+   * Правило сверки (ADR-0017 §3, ред. 4):
+   *
+   * - **значения контактов** (`email`, `phone`) — источник правды shadow: расхождение лечится записью
+   *   значения из shadow в Keycloak. Email сравниваем в нижнем регистре (нормализация shadow),
+   *   телефон — как есть: если Keycloak хранит не наш канонический E.164, это тоже полезно «починить»;
+   * - **флаги подтверждения** (`emailVerified`, `phoneVerified`) — монотонны, «true побеждает»: отставать
+   *   может **любая** сторона, потому что флаг в Keycloak ставит сам Keycloak, а shadow узнаёт об этом
+   *   асинхронно. При совпавших значениях флаг «с истиной» дочиняется в Keycloak, а флаг, стоящий
+   *   только в Keycloak, дочиняется в **shadow** (иначе детектор откатил бы честную верификацию);
+   * - если значения **разошлись**, флаг в Keycloak относится к прежнему значению: пишем значение и флаг
+   *   из shadow — смена контакта легитимно сбрасывает подтверждение.
    */
-  private differences(user: UserContactsSnapshot, identity: IdentityAdminUser): string[] {
-    const fields: string[] = [];
-    const kcEmail = (identity.email ?? null)?.toLowerCase() ?? null;
+  private plan(user: UserContactsSnapshot, identity: IdentityAdminUser): DriftPlan {
+    const kcEmail = identity.email?.toLowerCase() ?? null;
     const shadowEmail = user.email?.toLowerCase() ?? null;
+    const shadowEmailVerified = user.emailVerifiedAt !== null;
+    const shadowPhoneVerified = user.phoneVerifiedAt !== null;
 
-    if (kcEmail !== shadowEmail) fields.push('email');
-    if (identity.emailVerified !== (user.emailVerifiedAt !== null)) fields.push('emailVerified');
-    if ((identity.phone ?? null) !== user.phone) fields.push('phone');
-    if (identity.phoneVerified !== (user.phoneVerifiedAt !== null)) fields.push('phoneVerified');
+    const emailValueDrift = kcEmail !== shadowEmail;
+    const phoneValueDrift = (identity.phone ?? null) !== user.phone;
 
-    return fields;
+    const fields: string[] = [];
+    const forward: ('email' | 'phone')[] = [];
+    const write: NonNullable<DriftPlan['toKeycloak']> = { keycloakId: user.keycloakId };
+
+    if (emailValueDrift) {
+      fields.push('email');
+      write.email = user.email;
+      write.emailVerified = shadowEmailVerified;
+    } else if (shadowEmailVerified && !identity.emailVerified) {
+      fields.push('emailVerified');
+      write.emailVerified = true;
+    } else if (identity.emailVerified && !shadowEmailVerified) {
+      fields.push('emailVerified');
+      forward.push('email');
+    }
+
+    if (phoneValueDrift) {
+      fields.push('phone');
+      write.phone = user.phone;
+      write.phoneVerified = shadowPhoneVerified;
+    } else if (shadowPhoneVerified && !identity.phoneVerified) {
+      fields.push('phoneVerified');
+      write.phoneVerified = true;
+    } else if (identity.phoneVerified && !shadowPhoneVerified) {
+      fields.push('phoneVerified');
+      forward.push('phone');
+    }
+
+    const hasKeycloakWrite =
+      write.email !== undefined ||
+      write.emailVerified !== undefined ||
+      write.phone !== undefined ||
+      write.phoneVerified !== undefined;
+
+    return { fields, toKeycloak: hasKeycloakWrite ? write : null, forward };
   }
 
   /** В лог уходят только маски: полные контакты — PII. */
