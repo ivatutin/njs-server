@@ -66,7 +66,7 @@ export abstract class DomainError extends Error {
 - [x] хеш кода argon2id (не хранить plaintext), max 5 попыток → lock
 - [x] rate-limit: per-target 3/час + per-IP 10/час + cooldown 60 c
 - [x] SMS-абстракция (порт `SmsSender`) + dev-реализация (лог в консоль), prod — Twilio/SMS.ru тем же токеном
-- [ ] звонковая верификация: порт `PHONE_CALL_PROVIDER` + dev-заглушка, prod — SMS.ru callcheck — вынесено в Phase 2.5 (ADR-0014)
+- [x] звонковая верификация — перенесено в Phase 2.5 (ADR-0014) и **принято там** (см. раздел Phase 2.5); здесь только отметка о переносе.
 - [x] маскирование target для ответа: формат контракта `+7 (***) ***-12-34`, видимы реальные последние 4 цифры
 
 **Эндпоинты:**
@@ -345,7 +345,9 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
 
 Требует Phase 0 (OTP) + reauth-инфру.
 
-> **Реализация трио `contact-change` не начинается до решения (ревью координатора 15.10.2026, ADR-0017 ред. 2):**
+> **Решение получено и реализовано (15–16.10.2026):** B1 — путь B (стабильный `handle`, ADR-0017 ред. 3), B2 — семантика
+> B2-1 (`503` + `Retry-After` = ничего не применено, повтор разрешён; отзыв доступа **до** применения). Ниже сохранён
+> исходный текст блокировки как история решения:
 > **B1** — выбор политики `username` (путь **A**: разрешить переименование в реалме; путь **B**: стабильный handle —
 > рекомендация бэкенда); **B2** — проектирование частичного сбоя KC ↔ shadow (ре-чек в транзакции, идемпотентность,
 > компенсация + алерт, drift-детектор). **B3** — отзыв уже выданных access-токенов — вынесен в **ADR-0018**
@@ -368,9 +370,13 @@ I otp/send в пределах cooldown       → 422 OtpRateLimited { retryAfte
     (email у него нет по дизайну) падал **любой** password-grant — `Account is not fully set up`. Требование снято (dev),
     для прода это обязательный шаг → DEPLOYMENT §7
   - не сделано (отдельная задача до прода): rate-limit на попытки reauth — на реалме стоит включить brute-force detection
-- [ ] `POST /users/me/contact-change/request` — protected + `X-Reauth-Token` — `{ channel: 'email'|'phone', newValue }` → `201 { changeToken, requiresOldChallenge, oldChallengeId?, newChallengeId }`
-- [ ] `POST /users/me/contact-change/verify` — protected — `{ changeToken, oldCode?, newCode }` → `200 UserDto`
-- [ ] `POST /users/me/contact-change/cancel` — protected — `{ changeToken }` → `204`
+- [x] `POST /users/me/contact-change/request` — protected + `X-Reauth-Token` — `{ channel: 'email'|'phone', newValue }` → `201 { changeToken, requiresOldChallenge, oldChallengeId?, newChallengeId }`
+- [x] `POST /users/me/contact-change/verify` — protected — `{ changeToken, oldCode?, newCode }` → `200 UserDto`
+- [x] `POST /users/me/contact-change/cancel` — protected — `{ changeToken }` → `204`
+>
+> **Статус блока:** все три реализованы и **приняты живьём 16.10.2026** — детали, порядок операций и acceptance
+> в разделе «Phase 4 — трио `contact-change` (ADR-0017 ред. 2)» ниже. Боксы отмечены здесь как элемент трекинга,
+> спека осталась в тексте рядом.
 - [x] `POST /users/me/password` — protected + `X-Reauth-Token` → `{ newPassword }` → `204`
   - требование «пароль введён недавно» проверяет `ReauthTokenGuard`: токен из `POST /auth/reauth` должен принадлежать
     **тому же** пользователю (`sub` access-токена) и расходуется на входе (одноразовость) → иначе `401 ReauthTokenInvalid`
@@ -566,5 +572,10 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 | 🟢 3 | 3 | HMAC/OIDC, federated identity |
 | 🟢 4 | 6 | reauth (Redis one-shot) |
 | **Итого** | **18** | |
+
+**Фактический статус (16.10.2026):** Phase 0 ✅ · Phase 1 ✅ · Phase 1.5 ✅ · Phase 2 ✅ · Phase 2.5 ✅
+(звонковый канал включается ключом `SMSRU_CALLCHECK_ENABLED`) · **Phase 4 ✅ — все шесть эндпоинтов, включая трио
+`contact-change`**; **Phase 3 — вне объёма Auth v1** (решение координатора: соц-вход отложен).
+Итого: **15 из 18** эндпоинтов реализованы и приняты живьём, оставшиеся 3 — Phase 3.
 
 **Порядок:** Prerequisite → Phase 0 → дальше по фазам. Phase 2.5 (обратный звонок) не блокирует Phase 2: он переиспользует её эндпоинты и тот же челлендж-стор. Phase 0 разблокирует фронтовый `entities/otp-challenge`; после smoke-проверки фронт снимает MSW-моки на `/auth/otp/*` (процедура — в `auth-roadmap.md` репозитория фронта, § «Когда уходим от MSW»).
