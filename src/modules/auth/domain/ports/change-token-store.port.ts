@@ -1,5 +1,3 @@
-import { ContactChangeAlreadyPendingError } from '../errors/contact-change-already-pending.error';
-
 export const CHANGE_TOKEN_STORE = Symbol('CHANGE_TOKEN_STORE');
 
 /** TTL `changeToken`: 10 минут (ADR-0017 §5, ответ координатора №3). */

@@ -1,9 +1,6 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { UseCase } from '@shared/application/use-case.interface';
-import {
-  OTP_CHALLENGES,
-  OtpChallenges,
-} from '@shared/application/otp-challenges.interface';
+import { OTP_CHALLENGES, OtpChallenges } from '@shared/application/otp-challenges.interface';
 import {
   USER_CONTACTS,
   UserContacts,
