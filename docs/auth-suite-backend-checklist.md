@@ -586,9 +586,17 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 - [x] адаптер `DashaMailEmailSender`: **свой `message_id`**, **`X-Dashamail-Unsub-Ignore: 1`**, таймаут 5 с и 3 попытки
       на сеть/5xx (4xx без ретрая), маппинг отказов провайдера (`code 34` — домен не подтверждён, `673` — отписка)
       в `provider-error`; адрес получателя в логи не пишем (`maskEmail`); тесты `dashamail-email.sender.spec.ts`
-- [ ] **прод:** домен отправителя подтверждён (DKIM + SPF), `DASHAMAIL_API_KEY`, webhook минимум на `Bounced`/`dropped`
+- [ ] **прод (отложено: прод пока не выкатываем, работаем dev-локально — решение владельца 16.10.2026):** домен отправителя подтверждён (DKIM + SPF), `DASHAMAIL_API_KEY`, webhook минимум на `Bounced`/`dropped`
       (последний статус хранить по своему `message_id`)
-- [ ] realm SMTP Keycloak → DashaMail SMTP (проверить их SMTP-API: тогда один провайдер, один DKIM-домен, один прод-пункт)
+- [ ] realm SMTP Keycloak → DashaMail SMTP — **тоже прод** (проверить их SMTP-API: тогда один провайдер, один
+      DKIM-домен, один прод-пункт); в dev реалм шлёт на Mailpit (см. блок ниже)
+- [x] **dev-стенд (актуальный режим работы, 16.10.2026):** письма **Keycloak** (ссылка `VERIFY_EMAIL`) уходят на
+      **Mailpit** — реалм настроен на `mailpit:1025`. Mailpit в `docker-compose.yml` объявлен **под профилем `mail`**
+      (`docker-compose.yml:51`), поэтому обычный `docker compose up -d` его **не поднимает**: нужен
+      `docker compose --profile mail up -d` (или точечно `docker compose up -d mailpit`); UI — `http://localhost:8025`.
+      Без него живой сценарий «регистрация → клик по ссылке → active» не пройти (письмо теряется, хотя API отвечает).
+      Наши каналы в dev ключей не требуют: `ConsoleEmailSender` (код в лог) и dev-SMS (`[dev-sms]`); звонковый канал
+      выключен (`SMSRU_CALLCHECK_ENABLED=false`). Отмечено координатору — `questions/dev-stand-mailpit.md`.
 - [x] ADR-0019 «Канал доставки email» (`docs/adr/0019-email-delivery-channel.md`)
 - [x] подтверждён штатный путь перевыпуска кода: **`cancel` → `request`** (повторный `request` при активном change → `409
       ContactChangeAlreadyPending`); `OTP_CHALLENGES.verify` работает по `(target, purpose)`, поэтому перевыпуск челленджа
