@@ -532,7 +532,7 @@ contact-change notified kc=fbfdc201... channel=phone
 с `retryAfter` на кулдаун контакта, per-IP лимит и личный лимит смен (10/сутки) — то есть защита от перебора живая.
 
 **Долги (после Auth v1):** drift-детектор KC ↔ shadow; админский путь восстановления для passwordless-тупика (I4);
-канал доставки OTP-кода на email (см. вопрос координатору `njs-server-question-email-otp.md`).
+канал доставки OTP-кода на email (см. вопрос координатору `docs/auth/sessions/njs-server/questions/email-otp.md`).
 
 **Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
 shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →
@@ -552,7 +552,7 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 - [x] ADR-0019 «Канал доставки email» (`docs/adr/0019-email-delivery-channel.md`)
 - [x] подтверждён штатный путь перевыпуска кода: **`cancel` → `request`** (повторный `request` при активном change → `409
       ContactChangeAlreadyPending`); `OTP_CHALLENGES.verify` работает по `(target, purpose)`, поэтому перевыпуск челленджа
-      не ломает начатый change; фронту нужен **явный шаг «отменить и начать заново»** в UI + отсчёт `retryAfterSeconds`
+      не ломает начатый change; фронту нужен **явный шаг «отменить и начать заново»** в UI + отсчёт из `details.retryAfter`
 - [x] форма запроса/ответа сверена с документацией (15.10.2026): тело — `message_id`, `from_email`, `from_name`, `to`,
       `subject`, `message` (HTML), `plain_text`; ответ — `response.msg.err_code` (`0` = принято), `data.transaction_id` =
       эхо нашего `message_id`; незнакомая форма ответа = отказ, а не ложный успех

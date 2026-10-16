@@ -107,7 +107,7 @@ endpoint → `first-broker-login` → наш `redirect_uri` с кодом) за�
 
 ## Решение координатора по предложению v1.3 (15.10.2026)
 
-Чтобы ADR был самодостаточным (полный текст — `video-service/docs/handoff/decision-v1.3-social.md`):
+Чтобы ADR был самодостаточным (полный текст — `video-service/docs/auth/decisions/v1.3-social.md`):
 
 | Вопрос | Решение |
 | --- | --- |
