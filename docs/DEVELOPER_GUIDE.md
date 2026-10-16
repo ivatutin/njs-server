@@ -1376,10 +1376,14 @@ feat(user): add updateContacts use case with email/phone invariant
    - Сейчас `updateContacts` запрещает прямую смену verified
    - Нужен новый agregate: `PendingEmailChange`, `PendingPhoneChange`
    - Flow: запросить смену → отправить код на новый адрес → подтвердить → обновить
+   - ✅ **Сделано (Phase 4, ADR-0017):** санкционированная смена реализована как `User.applyVerifiedContactChange` +
+     трио `contact-change/request|verify|cancel` (без `Pending*Change`-агрегатов: состояние живёт в Redis-`changeToken`)
 
 4. **`/users/me` endpoint**
    - Возвращает данные текущего пользователя по `sub` из JWT
    - Нужен новый use case `GetUserByKeycloakIdUseCase` (или открыть `findByKeycloakId` в порте)
+   - ✅ **Сделано:** `GetUserByKeycloakIdUseCase` + `GET /users/me`; в Phase 4 к нему добавились `reauth`, `password`,
+     `set-password`, трио `contact-change` и `logout-all` (контракт v1.4, ADR-0018)
 
 #### Medium priority
 

@@ -71,6 +71,23 @@
    число погашенных сессий (в API адаптера это `client.logoutUser(keycloakId)` без ответа:
    `src/modules/auth/infrastructure/keycloak/keycloak-admin.adapter.ts:147-162`), а считать самим — выдумывать цифру.
 
+## Итог рассмотрения координатором (16.10.2026)
+
+**Принято целиком, контракт поднят до v1.4** — ответ координатора: `docs/auth/sessions/njs-server/replies/logout-all-proposal.md`.
+
+- форма `POST /users/me/logout-all` → `204` — подтверждена;
+- **без `X-Reauth-Token`** — согласовано (обоснование принято: операция не даёт захвата аккаунта, а reauth создал бы
+  тупик для passwordless-пользователей, I4); отдельный rate-limit не нужен — хватает глобального throttler'а;
+- **без счётчика в теле** — согласовано («цифру не выдумываем»); фронту отдельно запрещены любые «вышли N сессий»;
+- контракт обновлён координатором (`docs/auth/contract.md` → v1.4 + перегенерирован `contract.sha256`), зеркала сессий
+  синхронизируются перекопированием.
+
+**Реализовано и принято живьём** в этой же сессии: код `logout-all` (`LogoutAllUseCase` → `RevokeUserAccessUseCase`,
+`reason='logout-everywhere'`), тесты 5 кейсов, ADR-0018 уточнён, чек-лист обновлён; приёмка — `204` → `401` (тот же токен)
+→ `401` (второе устройство) → `401` (refresh) → повтор `204` → свежий вход `200`. Отчёт о реализации —
+`docs/auth/sessions/njs-server/questions/logout-all-implemented.md`, о приёмке —
+`docs/auth/sessions/njs-server/questions/logout-all-acceptance.md`.
+
 ## Ссылки
 
 - `docs/adr/0018-access-token-revocation.md` — механизм отзыва (таблица потребителей, строка «выйти везде»)

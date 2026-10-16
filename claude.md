@@ -14,7 +14,8 @@
 - Регистрация и жизненный цикл пользователя (создание → верификация контакта → активация → suspend/activate → удаление)
 - Поддержка двух каналов идентификации: **email и/или phone** (E.164), оба опциональные, но обязателен хотя бы один
 - Подтверждение контактов с автопереходом в `active`
-- Аутентификация (sign-in/sign-out/refresh/validate) через Keycloak с blacklist токенов в Redis
+- Аутентификация (sign-in/sign-out/refresh/validate) через Keycloak с blacklist токенов в Redis; выход разделён:
+  `sign-out` гасит **текущую** сессию, `logout-all` (контракт v1.4) — **все** (метка отзыва по `sub`, ADR-0018)
 - Доменные события (`UserCreated`, `EmailVerified`, `UserActivated`, …) на in-memory event bus, заменяемом на RabbitMQ без правок domain/application
 - Документированный HTTP API (Swagger UI), structured JSON-логи (pino), health-чек
 

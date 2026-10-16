@@ -1,3 +1,7 @@
+> **Исторический файл.** Это чек-лист самой первой итерации (Шаг 1 «Hello World» … Шаг 17) — оставлен для истории.
+> Актуальный статус по Auth v1 — [`docs/auth-suite-backend-checklist.md`](./docs/auth-suite-backend-checklist.md),
+> решения — [`docs/adr/`](./docs/adr/), действующий контракт — [`docs/auth-v1-contract.md`](./docs/auth-v1-contract.md).
+
 Шаг 1. Hello World — голый NestJS
 npm init -y
 Установить @nestjs/core, @nestjs/common, @nestjs/platform-express, reflect-metadata, rxjs + dev: typescript, @nestjs/cli, ts-node, @types/node
