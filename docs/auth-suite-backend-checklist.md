@@ -562,6 +562,13 @@ drift-детектор — реализован (см. блок выше), ка�
   `X-Reauth-Token`** (операция защитная, reauth дал бы тупик passwordless-пользователям — I4); идемпотентно; отказ
   инфраструктуры → `503` без нового кода; `POST /auth/sign-out` не меняется; ADR-0018 уточнён.
   Тесты: `test/application/auth/logout-all.use-case.spec.ts` (3), `test/interfaces/account-security.logout-all.spec.ts` (2).
+  **Живая приёмка 16.10.2026** (стек, отдельный тестовый пользователь; два независимых входа = «два устройства»):
+  `GET /users/me` (A) → `200`; `POST /users/me/logout-all` (A) → **`204`**; старым A → **`401`**; токеном B (другое
+  устройство) → **`401`**; `POST /auth/refresh` с refresh B → **`401`**; свежий вход → `logout-all` → `204` (повтор);
+  свежий вход **после** отзыва → `200` (пользователь не залочен). В логах —
+  `access revoked (logout-everywhere) for kc=…` ✓. Нюанс, подтверждённый отдельно: токен, выданный **в ту же секунду**,
+  что и отзыв, остаётся живым (`200`) — строгое `iat < revokedAt` (ADR-0018 C2); с паузой 3 с тот же сценарий даёт `401`.
+  Тестовый пользователь удалён и в Keycloak, и в shadow (чтобы не плодить `identity_missing` у детектора).
 
 **Прогресс реализации трио — закрыто полностью (16.10.2026):** доменный метод `User.applyVerifiedContactChange` →
 shared-порты `OTP_CHALLENGES` / `USER_CONTACTS` / `CONTACT_CHANGE_NOTIFIER` → `changeToken`-стор в Redis →
