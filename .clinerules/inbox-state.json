@@ -1,4 +1,22 @@
 {
-  "checkedAt": "2026-10-16T11:28:00+03:00",
-  "note": "Обновляется workflow /inbox (.clinerules/workflows/inbox.md). Значение = момент последнего разобранного входящего. 11:28 выставлено вручную при создании: replies/protocol-ack.md и contract.sha256 прочитаны, а auth/status.md, обновлённый 11:29, — ещё нет."
+  "checkedAt": "2026-10-16T12:10:00+03:00",
+  "note": "Обновляется workflow /inbox (.clinerules/workflows/inbox.md). Значение = момент последнего разобранного входящего. Первый проход (12:10): разобраны replies/protocol-ack.md, replies/scope-sync.md, replies/drift-detector.md, auth/status.md, shared/conventions.md; зеркало контракта сверено.",
+  "lastRun": {
+    "date": "2026-10-16T12:10:00+03:00",
+    "new": [
+      "replies/protocol-ack.md",
+      "replies/scope-sync.md",
+      "replies/drift-detector.md",
+      "status.md",
+      "shared/conventions.md"
+    ],
+    "contractMirror": "6dc5638406d9bd12e3086859c6548c2692585e68e0abdeb9e77f81923aa62451 — совпал",
+    "todo": [
+      "drift-detector условие 1: флаги verified — «true побеждает», дочинять отставшую сторону (в т.ч. shadow)",
+      "drift-detector: событие contact_drift_flag_forwarded + обязательный тест «KC впереди по emailVerified»",
+      "DEPLOYMENT §7 п.13: предупреждение об откате ручных правок в Account Console + прод report-only первым прогоном",
+      "предложение к контракту: POST /users/me/logout-all -> 204 через RevokeUserAccessUseCase(reason='logout-everywhere')"
+    ]
+  }
 }
+
