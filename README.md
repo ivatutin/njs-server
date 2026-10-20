@@ -57,6 +57,7 @@ Application runs at `http://localhost:3001/api/v1`. Swagger UI at `http://localh
 | What | Where |
 |---|---|
 | 📘 **Developer Guide** — архитектура, принципы, конвенции, FAQ (21 раздел, на русском) | [`docs/DEVELOPER_GUIDE.md`](./docs/DEVELOPER_GUIDE.md) |
+| 🧭 **Auth flows** — схемы (Mermaid): приложение ↔ Keycloak ↔ Postgres ↔ Redis, вход, guard, OTP, CIBA, смена контакта | [`docs/AUTH-FLOWS.md`](./docs/AUTH-FLOWS.md) |
 | 🏛 **Architecture Decision Records** — почему такие решения приняты | [`docs/adr/`](./docs/adr/) |
 | 🔌 **API Reference** — интерактивный Swagger UI | `http://localhost:3001/api/v1/docs` (running app) |
 | 🤖 **CLAUDE.md** — контекст для AI-ассистента | [`.claude/CLAUDE.md`](./.claude/CLAUDE.md) |

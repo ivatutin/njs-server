@@ -490,6 +490,10 @@ async create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
 
 ## 8. Аутентификация (Keycloak)
 
+> Ниже — один поток (вход). Полный набор схем с участниками, хранилищами и порядком записи
+> (вход, guard, refresh/выход, регистрация, OTP, CIBA, смена контакта, пароли, профиль, drift):
+> [`docs/AUTH-FLOWS.md`](./AUTH-FLOWS.md).
+
 ### Поток sign-in
 
 ```
