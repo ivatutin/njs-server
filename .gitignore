@@ -15,3 +15,6 @@ coverage/
 # (решение владельца 16.10.2026; shared/conventions.md, «Дополнительно принято 16.10.2026», п. 4)
 .claude/settings.local.json
 .clinerules/inbox-state.json
+
+# Артефакты прогонов dev-хоста (npm run start:dev с логами): не коммитить
+.dev-host*.log
