@@ -74,7 +74,36 @@ npm run start:dev
 | Redis (Valkey 8) | localhost:6379 — в этом окружении **6380** (`REDIS_HOST_PORT` в `.env`: 6379 занят контейнером другого проекта) |
 | Mailpit (письма Keycloak) | UI http://localhost:8025 · SMTP localhost:1025 |
 
-### Остановка
+### Приёмка звонкового канала (CIBA) на dev-стенде
+
+Рецепт проверен живьём фронт-сессией (звонок доходит до приложения на хосте). Причина, почему просто «поднять всё
+в Docker» не работает: контейнер `app` запускается с `NODE_ENV=production`, а dev-заглушки провайдеров в этом режиме
+**fail-closed** (отвечают `503`); при этом Keycloak зовёт CIBA-канал по **контейнерному** адресу
+(`docker-compose.yml:85`, по умолчанию `http://app-backend:3001/api/v1/internal/ciba/channel`). Контейнер до хоста
+по `host.docker.internal` достучаться не может — только наоборот, поэтому канал надо направить на хост явно.
+
+```powershell
+# 1. Освободить порт 3001: контейнер не нужен, приложение поднимем с хоста
+docker compose stop app
+
+# 2. Приложение на хосте (dev-заглушки звонка/письма здесь работают)
+$env:APP_PORT='3001'; npm run start:dev
+
+# 3. В другом терминале: направить CIBA-канал Keycloak в приложение на хосте
+$env:CIBA_CHANNEL_URL='http://host.docker.internal:3001/api/v1/internal/ciba/channel'
+docker compose up -d --force-recreate keycloak
+```
+
+`--force-recreate keycloak` обязателен: адрес канала — переменная окружения контейнера, при простом рестарте
+Keycloak возьмёт старое значение. Заодно рецепт подтверждает, что `CIBA_CHANNEL_URL` действительно переопределяет
+канал (полезно и в проде: бэкенд можно переставить, не трогая образ Keycloak).
+
+**Альтернатива — два инстанса** (если контейнер `app` нужно оставить поднятым, например для `full Docker`-проверок):
+контейнер держим на 3001, хостовое приложение поднимаем на другом порту (`$env:APP_PORT='3101'; npm run start:dev`) —
+челленджи и метки минта живут в общем Redis, поэтому звонок, инициированный хостовым инстансом, подтверждается
+контейнерным.
+
+
 
 ```powershell
 # 1. Приложение: Ctrl+C в терминале, где запущен npm run start:dev
@@ -124,6 +153,16 @@ docker compose down          # остановить весь стек
   Лимитер OTP (per-target и per-IP) не даёт прогнать сценарий подряд — в dev его ключи можно снести:
   `docker exec app-redis redis-cli --scan --pattern 'otp:*'`, затем `docker exec app-redis redis-cli DEL <ключи>`
   (кулдаун цели — 60 с, `otp:rl:*` живут до часа).
+- **Первый (холодный) телефонный вход.** После простоя бэкенда первый `sign-up/phone` может занять **до ~35 с**
+  (`responseTime 30640` на живой приёмке): клиент обрывает запрос, а бэкенд операцию доводит. Что уже снято кодом —
+  при старте приложения `AuthWarmupService` прогревает **service-account токен Keycloak** и **JWKS**
+  (в логе `keycloak admin token warmed in … ms` / `keycloak JWKS warmed in … ms`; ошибки прогрева старт не валят).
+  Что остаётся разовым: инициализация только что поднявшегося Keycloak (реалм, первый CIBA-запрос, первый
+  TLS-хендшейк). Тёплый путь — **5–7 с**, и это структурный пол: CIBA-минт ждёт `interval` из ответа
+  `backchannel-auth` (по умолчанию 5 с) перед первой попыткой `exchange`.
+  **Это прогрев, а не дефект.** Правило для клиента: `sign-up/*` неидемпотентны — автоматический повтор после
+  таймаута запрещён (повтор вернёт `409 ContactAlreadyExists` про собственный только что созданный аккаунт);
+  после обрыва UI предлагает войти.
 - **Русские буквы в JSON из PowerShell.** `Invoke-RestMethod -Body "<json>"` отправляет строку в Latin-1, и Keycloak
   отклоняет такие имена (`error-person-name-invalid-character`). Отправляй байты:
   `Invoke-RestMethod -Body ([Text.Encoding]::UTF8.GetBytes($json)) -ContentType 'application/json; charset=utf-8'`.

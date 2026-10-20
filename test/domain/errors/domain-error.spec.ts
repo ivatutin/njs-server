@@ -43,6 +43,10 @@ const REGISTRY_CODES = [
   // Phase 3 (ADR-0012): на провод пока не уходят
   'SocialAuthFailed',
   'ProviderAccountLinked',
+  // контракт v1.5: 403 от RolesGuard
+  'Forbidden',
+  // контракт v1.6: 503 от NestJS (ServiceUnavailableException)
+  'Service Unavailable',
 ];
 
 /** Промежуточные базовые классы: кода контракта у них нет и быть не должно. */

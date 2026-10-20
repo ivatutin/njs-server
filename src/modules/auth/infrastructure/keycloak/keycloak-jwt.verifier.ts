@@ -24,6 +24,14 @@ export class KeycloakJwtVerifier {
     this.issuer = httpClient.issuerUrl;
   }
 
+  /**
+   * Прогрев «холодного» пути (batch-3): первое чтение JWKS у Keycloak иначе случается
+   * на первом входящем запросе с токеном (CIBA-канал, любой protected-эндпоинт).
+   */
+  async warmUp(): Promise<void> {
+    await this.client.getSigningKeys();
+  }
+
   async verify(token: string): Promise<jwt.JwtPayload> {
     const decoded = jwt.decode(token, { complete: true });
     if (!decoded || typeof decoded === 'string' || !decoded.header?.kid) {

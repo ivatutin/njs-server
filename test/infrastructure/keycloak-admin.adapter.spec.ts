@@ -1,6 +1,6 @@
 import { UserNotFoundError } from '../../src/shared/domain/errors/user-not-found.error';
 import { KeycloakAdminAdapter } from '../../src/modules/auth/infrastructure/keycloak/keycloak-admin.adapter';
-import { KeycloakAdminClient } from '../../src/modules/auth/infrastructure/keycloak/keycloak-admin.client';
+import { KeycloakAdminClient } from '../../src/shared/infrastructure/keycloak/keycloak-admin.client';
 
 const KC_ID = 'f5c78c0c-0d91-49e8-bd4e-d3c02295ddcf';
 

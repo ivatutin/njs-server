@@ -15,6 +15,9 @@ import { CreateUserUseCase } from './application/use-cases/create-user/create-us
 import { GetUserByIdUseCase } from './application/use-cases/get-user-by-id/get-user-by-id.use-case';
 import { GetUserByKeycloakIdUseCase } from './application/use-cases/get-user-by-keycloak-id/get-user-by-keycloak-id.use-case';
 import { UpdateUserProfileUseCase } from './application/use-cases/update-user-profile/update-user-profile.use-case';
+import { UpdateMyProfileUseCase } from './application/use-cases/update-my-profile/update-my-profile.use-case';
+import { IDENTITY_PROFILE } from './domain/ports/identity-profile.port';
+import { KeycloakIdentityProfileAdapter } from './infrastructure/keycloak/keycloak-identity-profile.adapter';
 import { UpdateUserContactsUseCase } from './application/use-cases/update-user-contacts/update-user-contacts.use-case';
 import { VerifyUserEmailUseCase } from './application/use-cases/verify-user-email/verify-user-email.use-case';
 import { VerifyUserPhoneUseCase } from './application/use-cases/verify-user-phone/verify-user-phone.use-case';
@@ -53,6 +56,9 @@ import {
     GetUserByIdUseCase,
     GetUserByKeycloakIdUseCase,
     UpdateUserProfileUseCase,
+    UpdateMyProfileUseCase,
+    // Self-service профиль (контракт v1.6): имя пишется в Keycloak (source of truth) и в shadow
+    { provide: IDENTITY_PROFILE, useClass: KeycloakIdentityProfileAdapter },
     UpdateUserContactsUseCase,
     VerifyUserEmailUseCase,
     VerifyUserPhoneUseCase,

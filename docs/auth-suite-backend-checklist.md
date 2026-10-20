@@ -622,7 +622,49 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 
 ---
 
+## Итерация 2 — долги живой приёмки (20.10.2026): A–F
+
+- [x] **A. `PATCH /users/me/profile`** (контракт **v1.6**) — self-service профиль: protected, **без** `@Roles`,
+      `id` = `sub` из токена, тело `{ firstName?, lastName? }` (1–100, хотя бы одно), ответ `200 UserDto`.
+      Маршрут объявлен **выше** `@Patch(':id/profile')`, иначе `me` уходил в `:id` → `ParseUUIDPipe` 400.
+      Порядок записи: **Keycloak → shadow**; KC недоступен → `503` (`IdentityProfileUnavailableError`), shadow не тронут.
+      Файлы: `user/interfaces/http/user.controller.ts` (маршрут), `application/use-cases/update-my-profile/`,
+      `domain/ports/identity-profile.port.ts`, `infrastructure/keycloak/keycloak-identity-profile.adapter.ts`,
+      `domain/errors/identity-profile-unavailable.error.ts`.
+      **`PUT /users/{id}` — полная замена**, поэтому адаптер делает read-modify-write и переносит всё прочитанное
+      представление (`username`, `email`, `attributes`, `requiredActions`) — та же ловушка, что была у `updateContacts`.
+- [x] **B. Синхронизация имени при входе** — `UserSignedInPayload` расширен `firstName?`/`lastName?`; их наполняет
+      auth-модуль (`SignInUseCase` → `IDENTITY_ADMIN.findById`, best-effort: отказ админ-API не валит вход).
+      `OnUserSignedInHandler`: первый вход — создаёт пользователя **с именем**; повторный — досинхронизирует при
+      расхождении (`undefined` = не передано, `null` = в Keycloak пусто). Заглушка `Profile sync for verified contact
+      not implemented` заменена работой; email-дрейф по-прежнему только warn (смена подтверждённого email — `contact-change`).
+- [x] **C. Два кода в реестр:** `FORBIDDEN: 'Forbidden'` (v1.5, отдаёт `RolesGuard`) и
+      `SERVICE_UNAVAILABLE: 'Service Unavailable'` (v1.6, отдаёт NestJS на 503) — `shared/domain/errors/error-code.ts`;
+      снапшот реестра в `test/domain/errors/domain-error.spec.ts` обновлён.
+- [x] **D. `Retry-After` на любом 503 из `contact-change/verify`** — общий хелпер
+      `auth/interfaces/http/retry-after.ts` (`applyRetryAfterHeader`): классифицирует **по статусу**, своё значение
+      (`ContactChangeUnavailableError.retryAfterSeconds` = 5) берёт, если оно есть, иначе консервативные **30 с**.
+      Покрывает все пути: компенсация удалась, терминальное `failed`, отказ отзыва доступа, падение KC-адаптера.
+- [x] **E. Рецепт dev-стенда для приёмки звонка** — `docs/LOCAL_DEV.md`, раздел «Приёмка звонкового канала (CIBA)
+      на dev-стенде» (`docker compose stop app` → `APP_PORT=3001 npm run start:dev` → `CIBA_CHANNEL_URL=…host.docker.internal:3001…`
+      → `docker compose up -d --force-recreate keycloak`), плюс альтернатива «два инстанса» (`APP_PORT=3101` + общий Redis).
+- [x] **F. «Холодный» путь `sign-up/phone`** — при старте `AuthWarmupService` прогревает service-account токен Keycloak
+      и JWKS (ошибки прогрева старт не валят, таймаут 5 с); в `LOCAL_DEV.md` зафиксированы причина, тёплый пол
+      **5–7 с** (CIBA-минт ждёт `interval` = 5 с) и формулировка «первый вход до ~35 с — прогрев, не дефект»,
+      плюс правило клиента: `sign-up/*` неидемпотентны, автоматический повтор запрещён.
+
+**Инфраструктурная правка под A:** `KeycloakAdminClient` переехал в `shared/infrastructure/keycloak/`
+(+ `@Global KeycloakAdminModule`) — клиент нужен двум контекстам (auth и user), а импорт «модуль → модуль» правилами
+запрещён. Импорты обновлены в `auth.module.ts`, `keycloak-admin.adapter.ts`, тесте адаптера; `AppModule` импортирует модуль.
+
+**Тесты итерации 2:** `update-my-profile.use-case` (5), `keycloak-identity-profile.adapter` (5),
+`on-user-signed-in.handler` (+5), `user.controller.me-profile` (7), `retry-after` (4), `auth-warmup.service` (2),
+`sign-in.use-case` (+2), `user.controller.roles` (+3), `domain-error` (снапшот реестра).
+
+---
+
 ## Итог по объёму
+
 
 | Фаза | Эндпоинты | Ключевая инфра |
 |---|---|---|

@@ -8,6 +8,7 @@
  * Зеркало frontend-реестра `vue-app-base/src/shared/api/error-codes.ts`.
  * Версию контракта фиксирует `docs/auth-v1-contract.md` (в работе — **v1.4**; актуальную версию всегда смотри в шапке
  * того файла: эта строка один раз уже устарела — ровно так и появляются «сверенные по памяти» расхождения).
+ * Актуальная версия на 20.10.2026 — **v1.6**.
  *
  * Правила (совпадают с «Протокол расширения контракта ошибок» в контракте):
  * - имя — PascalCase без суффикса `Error`, схема `<Домен><Условие>`;
@@ -48,6 +49,14 @@ export const ErrorCode = {
   CONTACT_CHANGE_ALREADY_PENDING: 'ContactChangeAlreadyPending',
   PASSWORD_POLICY_VIOLATION: 'PasswordPolicyViolation',
   TERMS_NOT_ACCEPTED: 'TermsNotAccepted',
+
+  // Транспорт / инфраструктура
+  // v1.5: не хватает роли для эндпоинта (403). Отдаёт `RolesGuard` с ввода RBAC (ADR-0020),
+  // в реестре его не было — клиент не мог матчить 403 и обрабатывал «по статусу».
+  FORBIDDEN: 'Forbidden',
+  // v1.6: отказ инфраструктуры без доменного смысла (503) — Keycloak/провайдер недоступен.
+  // Строку отдаёт NestJS (`ServiceUnavailableException`), до v1.6 клиент ловил только по статусу.
+  SERVICE_UNAVAILABLE: 'Service Unavailable',
 
   // Social / federated
   SOCIAL_AUTH_FAILED: 'SocialAuthFailed',

@@ -11,7 +11,7 @@ import { SetPasswordUseCase } from '../../application/use-cases/set-password/set
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { ReauthTokenGuard } from './guards/reauth-token.guard';
-import { ContactChangeUnavailableError } from '../../domain/errors/contact-change-unavailable.error';
+import { applyRetryAfterHeader } from './retry-after';
 import { CancelContactChangeCommand } from '../../application/use-cases/cancel-contact-change/cancel-contact-change.command';
 import { CancelContactChangeUseCase } from '../../application/use-cases/cancel-contact-change/cancel-contact-change.use-case';
 import { LogoutAllCommand } from '../../application/use-cases/logout-all/logout-all.command';
@@ -174,10 +174,9 @@ export class AccountSecurityController {
       );
       return AuthHttpMapper.toUserDto(result.user);
     } catch (err) {
-      // B2-1: 503 означает «ничего не применено, повтор разрешён» — говорим клиенту, сколько ждать.
-      if (err instanceof ContactChangeUnavailableError) {
-        res.header('Retry-After', String(err.retryAfterSeconds));
-      }
+      // B2-1 + batch-4 п.3: 503 означает «ничего не применено (или повтор уже бессмысленен)»,
+      // заголовок ставится на **любом** 503 этого эндпоинта — см. `applyRetryAfterHeader`.
+      applyRetryAfterHeader(err, res);
       throw err;
     }
   }

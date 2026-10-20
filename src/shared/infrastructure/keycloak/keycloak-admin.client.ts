@@ -168,6 +168,14 @@ export class KeycloakAdminClient {
     });
   }
 
+  /**
+   * Прогрев «холодного» пути (batch-3): забирает service-account токен заранее,
+   * чтобы первый `sign-up/phone` не платил за минт токена и TLS-хендшейк.
+   */
+  async warmUp(): Promise<void> {
+    await this.accessToken();
+  }
+
   private async auth(): Promise<{ headers: Record<string, string> }> {
     return { headers: { Authorization: `Bearer ${await this.accessToken()}` } };
   }

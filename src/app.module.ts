@@ -8,6 +8,7 @@ import { EventBusModule } from './shared/infrastructure/event-bus/event-bus.modu
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
 import { RedisModule } from './shared/infrastructure/redis/redis.module';
 import { HealthModule } from './shared/infrastructure/health/health.module';
+import { KeycloakAdminModule } from './shared/infrastructure/keycloak/keycloak-admin.module';
 import { AppLoggerModule } from './shared/infrastructure/logger/logger.module';
 import { AllExceptionsFilter } from './shared/infrastructure/filters/all-exceptions.filter';
 import { UserModule } from './modules/user/user.module';
@@ -35,6 +36,7 @@ import dashamailConfig from './config/dashamail.config';
     RedisModule,
     EventBusModule,
     HealthModule,
+    KeycloakAdminModule,
     UserModule,
     AuthModule,
     OtpModule,

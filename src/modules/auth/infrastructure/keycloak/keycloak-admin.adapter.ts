@@ -8,7 +8,10 @@ import {
   IdentityAdminPort,
   IdentityAdminUser,
 } from '../../domain/ports/identity-admin.port';
-import { KeycloakAdminClient, KeycloakAdminUserRepresentation } from './keycloak-admin.client';
+import {
+  KeycloakAdminClient,
+  KeycloakAdminUserRepresentation,
+} from '@shared/infrastructure/keycloak/keycloak-admin.client';
 
 const VERIFY_EMAIL_EVENT = 'VERIFY_EMAIL';
 const MAX_EVENTS_PER_POLL = 100;

@@ -26,6 +26,8 @@ import { GetUserByIdUseCase } from '../../application/use-cases/get-user-by-id/g
 import { GetUserByKeycloakIdUseCase } from '../../application/use-cases/get-user-by-keycloak-id/get-user-by-keycloak-id.use-case';
 import { UpdateUserProfileUseCase } from '../../application/use-cases/update-user-profile/update-user-profile.use-case';
 import { UpdateUserProfileCommand } from '../../application/use-cases/update-user-profile/update-user-profile.command';
+import { UpdateMyProfileUseCase } from '../../application/use-cases/update-my-profile/update-my-profile.use-case';
+import { UpdateMyProfileCommand } from '../../application/use-cases/update-my-profile/update-my-profile.command';
 import { UpdateUserContactsUseCase } from '../../application/use-cases/update-user-contacts/update-user-contacts.use-case';
 import { UpdateUserContactsCommand } from '../../application/use-cases/update-user-contacts/update-user-contacts.command';
 import { VerifyUserEmailUseCase } from '../../application/use-cases/verify-user-email/verify-user-email.use-case';
@@ -49,6 +51,7 @@ export class UserController {
     private readonly getUserById: GetUserByIdUseCase,
     private readonly getUserByKeycloakId: GetUserByKeycloakIdUseCase,
     private readonly updateUserProfile: UpdateUserProfileUseCase,
+    private readonly updateMyProfileUC: UpdateMyProfileUseCase,
     private readonly updateUserContacts: UpdateUserContactsUseCase,
     private readonly verifyUserEmail: VerifyUserEmailUseCase,
     private readonly verifyUserPhone: VerifyUserPhoneUseCase,
@@ -110,6 +113,36 @@ export class UserController {
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
     const user = await this.getUserById.execute(id);
     return UserHttpMapper.toResponse(user);
+  }
+
+  /**
+   * Контракт v1.6. Объявлен **выше** `@Patch(':id/profile')`: иначе `me` попадёт в `:id`
+   * и `ParseUUIDPipe` вернёт 400 вместо обработки self-service-запроса.
+   * Без `@Roles` — это свой профиль; Keycloak id берём из токена (`sub`), а не из URL.
+   */
+  @Patch('me/profile')
+  @ApiOperation({
+    summary: 'Update own first/last name',
+    description:
+      'Self-service (contract v1.6, protected, no @Roles). Writes to Keycloak (source of truth for the name) ' +
+      'first, then to the local shadow; 503 means nothing was applied and a retry is allowed.',
+  })
+  @ApiResponse({ status: 200, type: UserResponseDto })
+  @ApiResponse({ status: 400, description: 'Validation failed (1-100 chars, at least one field)' })
+  @ApiResponse({ status: 401, description: 'InvalidToken' })
+  @ApiResponse({ status: 404, description: 'UserNotFound' })
+  @ApiResponse({
+    status: 503,
+    description: 'Keycloak/инфраструктура недоступна — ничего не применено, повтор разрешён',
+  })
+  async updateMyProfile(
+    @CurrentUser() user: TokenClaims,
+    @Body() dto: UpdateUserProfileDto,
+  ): Promise<UserResponseDto> {
+    const updated = await this.updateMyProfileUC.execute(
+      new UpdateMyProfileCommand(user.sub, dto.firstName, dto.lastName),
+    );
+    return UserHttpMapper.toResponse(updated);
   }
 
   @Patch(':id/profile')

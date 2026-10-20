@@ -11,7 +11,17 @@ export class UserSignedInEvent implements DomainEvent {
   readonly occurredOn: Date;
   readonly payload: Record<string, unknown>;
 
-  constructor(data: { keycloakId: string; email: string | null; roles: string[] }) {
+  constructor(data: {
+    keycloakId: string;
+    email: string | null;
+    roles: string[];
+    /**
+     * Имя из Keycloak — источник истины по профилю (контракт v1.6).
+     * `undefined` = «в событии имени нет» (не трогаем shadow), `null` = «в Keycloak пусто».
+     */
+    firstName?: string | null;
+    lastName?: string | null;
+  }) {
     this.occurredOn = new Date();
     this.payload = { ...data };
   }

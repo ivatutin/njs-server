@@ -27,9 +27,9 @@ import { RevokeUserAccessUseCase } from './application/use-cases/revoke-user-acc
 import { KeycloakHttpClient } from './infrastructure/keycloak/keycloak-http.client';
 import { KeycloakJwtVerifier } from './infrastructure/keycloak/keycloak-jwt.verifier';
 import { KeycloakAdapter } from './infrastructure/keycloak/keycloak.adapter';
-import { KeycloakAdminClient } from './infrastructure/keycloak/keycloak-admin.client';
 import { KeycloakAdminAdapter } from './infrastructure/keycloak/keycloak-admin.adapter';
 import { KeycloakEventListenerService } from './infrastructure/keycloak/keycloak-event-listener.service';
+import { AuthWarmupService, JWKS_WARMUP } from './application/services/auth-warmup.service';
 import { RedisTokenStore } from './infrastructure/redis/redis-token.store';
 import { SignInUseCase } from './application/use-cases/sign-in/sign-in.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token/refresh-token.use-case';
@@ -55,7 +55,6 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
     // Adapters
     KeycloakHttpClient,
     KeycloakJwtVerifier,
-    KeycloakAdminClient,
     { provide: IDENTITY_PROVIDER, useClass: KeycloakAdapter },
     { provide: IDENTITY_ADMIN, useClass: KeycloakAdminAdapter },
     { provide: TOKEN_STORE, useClass: RedisTokenStore },
@@ -99,6 +98,10 @@ import { RolesGuard } from './interfaces/http/guards/roles.guard';
 
     // «Слушатель» событий Keycloak (поллинг Admin Events API → domain event)
     KeycloakEventListenerService,
+
+    // Прогрев «холодного» пути (batch-3): админ-токен и JWKS до первого запроса
+    { provide: JWKS_WARMUP, useExisting: KeycloakJwtVerifier },
+    AuthWarmupService,
 
     // Global guards (order matters: JWT first, Roles after)
     { provide: APP_GUARD, useClass: JwtAuthGuard },
