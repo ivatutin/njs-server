@@ -118,7 +118,7 @@ sequenceDiagram
     else успех
         KC-->>API: access + refresh (сессия KC создана)
         API->>KC: JWKS (кэш 10 мин) — проверка подписи/issuer/azp/iat
-        API->>KC: Admin API: пользователь по sub (имя; best-effort)
+        API->>KC: Admin API: пользователь по sub (имя, best-effort)
         API->>BUS: publish auth.user-signed-in {sub, email, roles, firstName, lastName}
         BUS->>U: handle(event)
         U->>PG: findByKeycloakId → create (с именем) / sync имени+ролей
@@ -143,7 +143,7 @@ flowchart TD
     C -- да --> D["Проверка подписи по JWKS<br/>(кэш ключей 10 мин)"]
     D -- "ошибка / azp≠app-backend / нет sub или iat" --> U401
     D -- ок --> E["Redis MGET:<br/>auth:blacklist:token + auth:sub-revoked:sub"]
-    E -- "блоклист ИЛИ iat &lt; revokedAt" --> U401
+    E -- "блоклист ИЛИ iat раньше метки отзыва" --> U401
     E -- "чисто" --> F{"@Roles(...)?"}
     F -- "роль есть в realm_access.roles" --> OK
     F -- "роли нет" --> F403["403 Forbidden"]
@@ -256,7 +256,7 @@ sequenceDiagram
         API->>RD: attempts++ (5 → OtpTooManyAttempts)
         API-->>FE: 422 OtpInvalid
     else код верный
-        API->>RD: DEL челленджа; SET otp:verification:<token> (10 мин)
+        API->>RD: DEL челленджа, затем SET otp:verification:<token> (10 мин)
         API-->>FE: 200 {verificationToken}
     end
 ```
@@ -368,7 +368,7 @@ flowchart TD
         A2 -- да --> A3["handle по sub → password grant в KC"]
         A3 -- "неверный пароль" --> A4["registerFailure → 401"]
         A3 -- "верно" --> A5["reset limiter + logout этой сессии KC"]
-        A5 --> A6["Redis auth:reauth:&lt;sha256&gt; (5 мин)"]
+        A5 --> A6["Redis auth:reauth (sha256, 5 мин)"]
         A6 --> A7["X-Reauth-Token для опасных операций"]
     end
 
@@ -414,7 +414,7 @@ sequenceDiagram
         API->>PG: updateProfile + save
         API-->>FE: 200 UserResponseDto
     end
-    Note over FE,PG: имя — источник истины Keycloak;<br/>на следующем входе sync (§3) подтвердит значение
+    Note over FE,PG: имя — источник истины Keycloak,<br/>на следующем входе sync (§3) подтвердит значение
 ```
 
 - `PUT /users/{id}` в Keycloak — **полная замена**: адаптер читает представление и переносит его целиком
