@@ -393,7 +393,7 @@ flowchart TD
 Порядок «отзыв → запись пароля» зафиксирован: состояние «пароль изменён, доступ не отозван» недостижимо по построению.
 `reauth` при этом не является входом — сессию, созданную проверкой пароля, сразу гасим.
 
-## 11. Профиль: `PATCH /users/me/profile` (v1.6) и sync имени
+## 11. Профиль: `PATCH /users/me/profile` (v1.6, отказ политики имён — v1.7) и sync имени
 
 ```mermaid
 sequenceDiagram
@@ -408,18 +408,26 @@ sequenceDiagram
     Note over API,PG: порядок обязателен: сначала Keycloak
     API->>KC: GET /users/{sub} (текущее представление)
     API->>KC: PUT /users/{sub} — полное представление + новое имя
-    alt Keycloak недоступен
-        API-->>FE: 503 (shadow НЕ тронут — расхождения нет)
-    else успех
-        API->>PG: updateProfile + save
-        API-->>FE: 200 UserResponseDto
+    alt Keycloak недоступен (сеть, 5xx, 401/403 сервисного аккаунта)
+        API-->>FE: 503 ServiceUnavailable (shadow НЕ тронут — расхождения нет)
+    else ответ получен
+        alt Keycloak отклонил имя (400 — политика имён, v1.7)
+            API-->>FE: 422 ProfileNameInvalid (shadow НЕ тронут, повтор не поможет)
+        else успех
+            API->>PG: updateProfile + save
+            API-->>FE: 200 UserResponseDto
+        end
     end
     Note over FE,PG: имя — источник истины Keycloak,<br/>на следующем входе sync (§3) подтвердит значение
 ```
 
 - `PUT /users/{id}` в Keycloak — **полная замена**: адаптер читает представление и переносит его целиком
   (`username`, `email`, `emailVerified`, `enabled`, `attributes`, `requiredActions`), меняя только имя;
-- если shadow-запись упала уже после Keycloak, расхождение лечится синхронизацией на входе — отдельная компенсация не нужна.
+- если shadow-запись упала уже после Keycloak, расхождение лечится синхронизацией на входе — отдельная компенсация не нужна;
+- **отказ политики имён (v1.7):** `400` от Keycloak на этом эндпоинте — это ответ **на данные клиента**
+  (`error-user-attribute-required`, `error-person-name-invalid-character`), поэтому наружу уходит
+  **`422 ProfileNameInvalid`**, а не `503`; повтор не поможет — нужно исправить имя. `503` остался только для
+  инфраструктуры (сеть, `5xx`, `401/403` сервисного аккаунта).
 
 ## 12. Drift-детектор: периодическая сверка shadow ↔ Keycloak
 
@@ -479,10 +487,15 @@ flowchart LR
 | `contact-change/verify` | ничего не применено (компенсация удалась), `changeToken` жив — **любой** путь 503 | `Retry-After` (5 с, если есть своё значение, иначе 30 с) |
 | `set-password` / `password` | отзыв не выполнен → изменение не применено | — |
 | `logout-all` | отзыв не выполнен, метка не поставлена, повтор безопасен | — |
-| `PATCH /users/me/profile` | shadow не тронут | — |
+| `PATCH /users/me/profile` | Keycloak недоступен (сеть, `5xx`, `401/403` сервисного аккаунта) — shadow не тронут | — |
 | минт токенов (CIBA), звонок, письмо смены контакта | отказ канала/инфраструктуры | — |
 
 Во всех случаях в поле `error` — контрактный код `Service Unavailable` (v1.6), а не текст NestJS «по статусу».
+
+**Исключение — отказ политики имён (v1.7):** `PATCH /users/me/profile` с именем, которое Keycloak не принимает
+(`error-user-attribute-required`, `error-person-name-invalid-character`), отвечает **`422 ProfileNameInvalid`**,
+а не `503`. Это ответ на данные клиента: повтор не поможет — нужно исправить имя. Правило выбора простое:
+**`422` = исправь ввод, `503` = повтори позже.**
 
 ## 15. Где смотреть код
 
