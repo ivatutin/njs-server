@@ -665,6 +665,24 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
 
 ---
 
+## Итерация 2.1 — контракт v1.7: `ProfileNameInvalid` (21.10.2026)
+
+- [x] **Код `ProfileNameInvalid` (422) в реестр** (`error-code.ts`) + доменная ошибка
+      `user/domain/errors/profile-name-invalid.error.ts` (`RuleViolationError` → 422).
+- [x] **Классификация в адаптере** `keycloak-identity-profile.adapter.ts`: `400` от Keycloak на `PUT /users/{id}` →
+      `422 ProfileNameInvalid`; `401/403`, `5xx`, сеть/таймаут → `503 ServiceUnavailable` (как раньше).
+      Логирование тела Keycloak из batch-5 сохранено.
+- [x] **Живой прогон:** `PATCH /users/me/profile {firstName: "Иван<>"}` → **`422`**
+      `{"error":"ProfileNameInvalid","message":"Profile name is not accepted by the identity provider policy"}`;
+      валидное имя → `200`. Реальное тело Keycloak в логе:
+      `{"field":"firstName","errorMessage":"error-person-name-invalid-character","params":["firstName"]}` —
+      то есть код Keycloak отличается от предполагавшегося `person-name-prohibited-characters`;
+      классификация по статусу `400` покрывает оба.
+- [x] **Тесты:** +4 (3 параметризованных `400`-кейса + матрица «401/403/5xx/сеть → 503»); 66 suite / **387** тестов.
+- [x] ДТО-валидацию символов **не добавляли** (решение координатора: политика имён — в Keycloak).
+
+---
+
 ## Итог по объёму
 
 

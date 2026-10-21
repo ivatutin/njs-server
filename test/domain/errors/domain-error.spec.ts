@@ -47,6 +47,8 @@ const REGISTRY_CODES = [
   'Forbidden',
   // контракт v1.6: 503 от NestJS (ServiceUnavailableException)
   'Service Unavailable',
+  // контракт v1.7: отказ политики имён Keycloak
+  'ProfileNameInvalid',
 ];
 
 /** Промежуточные базовые классы: кода контракта у них нет и быть не должно. */
@@ -188,6 +190,7 @@ describe('DomainError.code', () => {
         'OtpRateLimited',
         'OtpTooManyAttempts',
         'PasswordPolicyViolation',
+        'ProfileNameInvalid',
         // Phase 4 (ADR-0006-стиль гардрейла): X-Reauth-Token на опасных операциях
         'ReauthTokenExpired',
         'ReauthTokenInvalid',

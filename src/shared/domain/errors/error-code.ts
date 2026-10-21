@@ -57,6 +57,11 @@ export const ErrorCode = {
   // v1.6: отказ инфраструктуры без доменного смысла (503) — Keycloak/провайдер недоступен.
   // Строку отдаёт NestJS (`ServiceUnavailableException`), до v1.6 клиент ловил только по статусу.
   SERVICE_UNAVAILABLE: 'Service Unavailable',
+  // v1.7: имя не прошло **политику Keycloak** (422) — пусто там, где реалм требует
+  // (`required: {"roles":["user"]}`), или запрещённые символы (`person-name-prohibited-characters`).
+  // До v1.7 этот отказ маскировался под `ServiceUnavailable`: клиент предлагал «повторить позже»,
+  // хотя повтор не помогает — нужно исправить имя.
+  PROFILE_NAME_INVALID: 'ProfileNameInvalid',
 
   // Social / federated
   SOCIAL_AUTH_FAILED: 'SocialAuthFailed',

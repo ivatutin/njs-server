@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
+import { ErrorCode } from '../../src/shared/domain/errors/error-code';
+import { RuleViolationError } from '../../src/shared/domain/errors/rule-violation.error';
 import { KeycloakAdminClient } from '../../src/shared/infrastructure/keycloak/keycloak-admin.client';
+import { ProfileNameInvalidError } from '../../src/modules/user/domain/errors/profile-name-invalid.error';
 import { KeycloakIdentityProfileAdapter } from '../../src/modules/user/infrastructure/keycloak/keycloak-identity-profile.adapter';
 import { IdentityProfileUnavailableError } from '../../src/modules/user/domain/errors/identity-profile-unavailable.error';
 import { UserNotFoundError } from '../../src/shared/domain/errors/user-not-found.error';
@@ -104,7 +107,7 @@ describe('KeycloakIdentityProfileAdapter.updateName', () => {
     });
 
     await expect(adapter.updateName({ keycloakId: KC_ID, firstName: 'Jane' })).rejects.toBeInstanceOf(
-      IdentityProfileUnavailableError,
+      ProfileNameInvalidError,
     );
 
     const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
@@ -115,6 +118,45 @@ describe('KeycloakIdentityProfileAdapter.updateName', () => {
     expect(logged).not.toContain('Jane');
 
     warn.mockRestore();
+  });
+
+  // --- контракт v1.7: 400 от Keycloak = отказ по данным профиля, а не «сервис недоступен» ---
+
+  it.each([
+    ['error-user-attribute-required', 'firstName', 'Jane'],
+    ['person-name-prohibited-characters', 'firstName', 'Иван<>'],
+    ['error-invalid-email', 'lastName', 'Doe'],
+  ])('400 %s → 422 ProfileNameInvalid (не 503)', async (kcError, field, value) => {
+    const { adapter, client } = build();
+    (client.updateUser as jest.Mock).mockRejectedValue({
+      message: 'Request failed with status code 400',
+      response: { status: 400, data: { error: kcError, errorMessage: 'rejected' } },
+    });
+
+    const error = await adapter
+      .updateName({ keycloakId: KC_ID, [field]: value })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ProfileNameInvalidError);
+    expect((error as ProfileNameInvalidError).code).toBe(ErrorCode.PROFILE_NAME_INVALID);
+    // 422 даёт фильтр: `RuleViolationError` → Unprocessable Entity (проверяется отдельным тестом фильтра)
+    expect(error).toBeInstanceOf(RuleViolationError);
+  });
+
+  it('401/403/5xx и сеть остаются 503 ServiceUnavailable (инфраструктура)', async () => {
+    for (const failure of [
+      { response: { status: 401 } },
+      { response: { status: 403 } },
+      { response: { status: 502 } },
+      new Error('ECONNREFUSED'),
+    ]) {
+      const { adapter, client } = build();
+      (client.updateUser as jest.Mock).mockRejectedValue(failure);
+
+      await expect(adapter.updateName({ keycloakId: KC_ID, firstName: 'Jane' })).rejects.toBeInstanceOf(
+        IdentityProfileUnavailableError,
+      );
+    }
   });
 
   it('пользователя нет в Keycloak → UserNotFound, записи нет', async () => {

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { UserNotFoundError } from '@shared/domain/errors/user-not-found.error';
 import { KeycloakAdminClient } from '@shared/infrastructure/keycloak/keycloak-admin.client';
 import { IdentityProfileUnavailableError } from '../../domain/errors/identity-profile-unavailable.error';
+import { ProfileNameInvalidError } from '../../domain/errors/profile-name-invalid.error';
 import { IdentityProfilePort } from '../../domain/ports/identity-profile.port';
 
 /**
@@ -65,9 +66,30 @@ export class KeycloakIdentityProfileAdapter implements IdentityProfilePort {
           `fields=[${writtenFields(params)}] currentName=[${nameState(current)}]: ` +
           `${describeKeycloakError(err)}`,
       );
+
+      // Классификация отказа (контракт v1.7): `PUT /users/{id}` отвечает `400` **только** на данные
+      // профиля (политика имён: `error-user-attribute-required`, `person-name-prohibited-characters`).
+      // Это не «сервис недоступен» — повтор не поможет, клиент должен поправить имя → `422`.
+      if (isProfilePolicyRejection(err)) {
+        throw new ProfileNameInvalidError();
+      }
+
+      // 401/403 (сервисный аккаунт/права), 5xx, сеть, таймаут — инфраструктура: `503`, повтор возможен.
       throw new IdentityProfileUnavailableError();
     }
   }
+}
+
+/**
+ * Отказ Keycloak по **данным профиля** (контракт v1.7): `400` на `PUT /users/{id}`.
+ *
+ * Keycloak отвечает `400` на этом эндпоинте только за профиль — политика имени
+ * (`error-user-attribute-required`, `person-name-prohibited-characters`) или невалидный `email`.
+ * Всё остальное (`401/403/404/5xx`, сеть) — инфраструктура.
+ */
+function isProfilePolicyRejection(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  return status === 400;
 }
 
 /**
