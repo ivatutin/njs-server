@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { KeycloakAdminClient } from '../../src/shared/infrastructure/keycloak/keycloak-admin.client';
 import { KeycloakIdentityProfileAdapter } from '../../src/modules/user/infrastructure/keycloak/keycloak-identity-profile.adapter';
 import { IdentityProfileUnavailableError } from '../../src/modules/user/domain/errors/identity-profile-unavailable.error';
@@ -72,8 +73,48 @@ describe('KeycloakIdentityProfileAdapter.updateName', () => {
       string,
       Record<string, unknown>,
     ];
-    expect(representation.firstName).toBeNull();
-    expect(representation.lastName).toBeNull();
+    // batch-5: в теле — пустые строки, не `null` (иначе profile-валидатор роли `user` даёт 400)
+    expect(representation.firstName).toBe('');
+    expect(representation.lastName).toBe('');
+  });
+
+  it('«пустой» профиль: только firstName → второе имя уходит пустой строкой, а не null (batch-5)', async () => {
+    const { adapter, client } = build(currentUser({ firstName: undefined, lastName: undefined }));
+
+    await adapter.updateName({ keycloakId: KC_ID, firstName: 'Jane' });
+
+    const [, representation] = (client.updateUser as jest.Mock).mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(representation.firstName).toBe('Jane');
+    expect(representation.lastName).toBe('');
+    expect(JSON.stringify(representation)).not.toContain('null');
+  });
+
+  it('тело ответа Keycloak попадает в лог (batch-5: раньше терялось)', async () => {
+    const { adapter, client } = build();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    (client.updateUser as jest.Mock).mockRejectedValue({
+      message: 'Request failed with status code 400',
+      response: {
+        status: 400,
+        data: { error: 'error-user-attribute-required', errorMessage: 'User attribute is required' },
+      },
+    });
+
+    await expect(adapter.updateName({ keycloakId: KC_ID, firstName: 'Jane' })).rejects.toBeInstanceOf(
+      IdentityProfileUnavailableError,
+    );
+
+    const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('[status 400]');
+    expect(logged).toContain('error-user-attribute-required');
+    expect(logged).toContain('firstName=set');
+    // значения имён (PII) в лог не попадают
+    expect(logged).not.toContain('Jane');
+
+    warn.mockRestore();
   });
 
   it('пользователя нет в Keycloak → UserNotFound, записи нет', async () => {

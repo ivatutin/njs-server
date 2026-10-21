@@ -646,8 +646,10 @@ Phase 4 на бэкенде закрыта; незакрытым по ADR-0017 �
       (`ContactChangeUnavailableError.retryAfterSeconds` = 5) берёт, если оно есть, иначе консервативные **30 с**.
       Покрывает все пути: компенсация удалась, терминальное `failed`, отказ отзыва доступа, падение KC-адаптера.
 - [x] **E. Рецепт dev-стенда для приёмки звонка** — `docs/LOCAL_DEV.md`, раздел «Приёмка звонкового канала (CIBA)
-      на dev-стенде» (`docker compose stop app` → `APP_PORT=3001 npm run start:dev` → `CIBA_CHANNEL_URL=…host.docker.internal:3001…`
-      → `docker compose up -d --force-recreate keycloak`), плюс альтернатива «два инстанса» (`APP_PORT=3101` + общий Redis).
+      на dev-стенде». **Обновлён 21.10.2026 (batch-5 п.2):** старый рецепт с `host.docker.internal` **не работает**
+      (Keycloak в контейнере его не резолвит, `PORT3001_FAIL`); рабочий — второй инстанс `app-dev` **в сети compose**
+      (`NODE_ENV=development`, общий Redis) + `CIBA_CHANNEL_URL=http://app-dev:3001/api/v1/internal/ciba/channel`
+      и `docker compose up -d --force-recreate keycloak`.
 - [x] **F. «Холодный» путь `sign-up/phone`** — при старте `AuthWarmupService` прогревает service-account токен Keycloak
       и JWKS (ошибки прогрева старт не валят, таймаут 5 с); в `LOCAL_DEV.md` зафиксированы причина, тёплый пол
       **5–7 с** (CIBA-минт ждёт `interval` = 5 с) и формулировка «первый вход до ~35 с — прогрев, не дефект»,

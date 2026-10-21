@@ -76,32 +76,51 @@ npm run start:dev
 
 ### Приёмка звонкового канала (CIBA) на dev-стенде
 
-Рецепт проверен живьём фронт-сессией (звонок доходит до приложения на хосте). Причина, почему просто «поднять всё
-в Docker» не работает: контейнер `app` запускается с `NODE_ENV=production`, а dev-заглушки провайдеров в этом режиме
-**fail-closed** (отвечают `503`); при этом Keycloak зовёт CIBA-канал по **контейнерному** адресу
-(`docker-compose.yml:85`, по умолчанию `http://app-backend:3001/api/v1/internal/ciba/channel`). Контейнер до хоста
-по `host.docker.internal` достучаться не может — только наоборот, поэтому канал надо направить на хост явно.
+Два требования, которые надо закрыть одновременно:
+
+- CIBA-канал должен быть доступен **из контейнера Keycloak** (`docker-compose.yml`: `CIBA_CHANNEL_URL`, по умолчанию
+  `http://app-backend:<APP_PORT>/<APP_PATH_PREFIX>/internal/ciba/channel`);
+- dev-заглушка провайдера звонка работает **только** при `NODE_ENV=development`, а контейнер `app` запускается
+  с `NODE_ENV=production` и на звонок отвечает `503`.
+
+> **`host.docker.internal` не работает (проверено живьём на Windows).** Keycloak в контейнере его не резолвит
+> (`PORT3001_FAIL`), поэтому схема «хост-инстанс на 3001 + `CIBA_CHANNEL_URL=http://host.docker.internal:3001/...`»
+> **нерабочая**. Рабочая схема — второй инстанс приложения **в той же сети compose**.
 
 ```powershell
-# 1. Освободить порт 3001: контейнер не нужен, приложение поднимем с хоста
-docker compose stop app
+# 1. Второй инстанс в сети compose (dev-режим, dev-заглушки звонка работают).
+#    Имя сети: <project>_app-network — посмотреть: docker network ls
+docker run -d --name app-dev --network <project>_app-network -p 3101:3001 `
+  --env-file .env `
+  -e NODE_ENV=development -e APP_PORT=3001 `
+  -e DATABASE_URL='postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public' `
+  -e REDIS_HOST=redis -e REDIS_PORT=6379 `
+  -e KEYCLOAK_URL=http://keycloak:8080 -e KEYCLOAK_ISSUER='http://localhost:8088/realms/app' `
+  njs-server-app:latest
 
-# 2. Приложение на хосте (dev-заглушки звонка/письма здесь работают)
-$env:APP_PORT='3001'; npm run start:dev
+# 2. Направить CIBA-канал Keycloak на app-dev и пересоздать Keycloak
+$env:CIBA_CHANNEL_URL='http://app-dev:3001/api/v1/internal/ciba/channel'
+docker compose up -d --force-recreate keycloak
 
-# 3. В другом терминале: направить CIBA-канал Keycloak в приложение на хосте
-$env:CIBA_CHANNEL_URL='http://host.docker.internal:3001/api/v1/internal/ciba/channel'
+# 3. Уборка (вернуть канал на контейнер app)
+docker rm -f app-dev
 docker compose up -d --force-recreate keycloak
 ```
 
-`--force-recreate keycloak` обязателен: адрес канала — переменная окружения контейнера, при простом рестарте
-Keycloak возьмёт старое значение. Заодно рецепт подтверждает, что `CIBA_CHANNEL_URL` действительно переопределяет
-канал (полезно и в проде: бэкенд можно переставить, не трогая образ Keycloak).
+Почему так:
 
-**Альтернатива — два инстанса** (если контейнер `app` нужно оставить поднятым, например для `full Docker`-проверок):
-контейнер держим на 3001, хостовое приложение поднимаем на другом порту (`$env:APP_PORT='3101'; npm run start:dev`) —
-челленджи и метки минта живут в общем Redis, поэтому звонок, инициированный хостовым инстансом, подтверждается
-контейнерным.
+- `app-dev` виден Keycloak по имени в сети compose — канал доступен;
+- `NODE_ENV=development` включает dev-заглушку звонка (в контейнере `app` она молчит — fail-closed);
+- `KEYCLOAK_URL` — **внутренний** адрес (из сети compose), `KEYCLOAK_ISSUER` — **внешний**: токены проверяются
+  по `iss`, который клиент видит с хоста;
+- челленджи и метки минта живут в общем Redis, поэтому звонок, инициированный любым инстансом, подтверждается другим;
+- `--force-recreate keycloak` обязателен: адрес канала — переменная окружения контейнера, при простом рестарте
+  Keycloak возьмёт старое значение. Заодно это подтверждает, что `CIBA_CHANNEL_URL` действительно переопределяет
+  канал (полезно и в проде: бэкенд можно переставить, не трогая образ Keycloak).
+
+Значения `<POSTGRES_USER>` / `<POSTGRES_PASSWORD>` / `<POSTGRES_DB>` берутся из `.env` — в документации они
+намеренно не приводятся.
+
 
 
 
