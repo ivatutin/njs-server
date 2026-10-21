@@ -86,9 +86,10 @@ flowchart LR
 | `auth:change-quota:<sub>` | счётчик смен | сутки | лимит I8 (`OtpRateLimited`) |
 | `auth:reauth:<sha256(token)>` | `keycloakId` | 5 мин | `reauth` → guard опасных операций (`GETDEL`) |
 | `auth:reauth-fail:<sub>` | счётчик неудач | 15 мин | brute-force на reauth (5 попыток) |
-| `otp:challenge:<id>` | снапшот челленджа | срок кода | `otp/send`, `otp/verify`, смена контакта |
-| `otp:active:<sha256(target\|purpose)>` | `id` активного челленджа | срок кода | resend/перевыпуск |
-| `otp:call:<check_id>` | `id` челленджа | срок кода | обратный звонок (SMS.ru callcheck) |
+| `otp:challenge:<id>` | снапшот челленджа | 5 мин (`OTP_TTL_SECONDS`) | `otp/send`, `otp/verify`, смена контакта |
+| `otp:active:<sha256(target\|purpose)>` | `id` активного челленджа | 5 мин | resend/перевыпуск; старт в любом канале вытесняет предыдущий |
+| `otp:call:<check_id>` | `id` челленджа | 5 мин (`CALL_WINDOW_SECONDS`) | обратный звонок: индекс `check_id` → челлендж (вебхук, webhook) |
+| `otp:claim:<challengeId>` | `1` (флаг `SET NX`) | 10 мин (`VERIFICATION_TOKEN_TTL_SECONDS`) | звонок: гарантия, что `verificationToken` выдаётся **один раз** при гонке «вебхук + polling» |
 | `otp:rl:cooldown:<sha256(target)>` | `1` | 60 с | антиспам на цель |
 | `otp:rl:target:<sha256(target)>` / `otp:rl:ip:<ip>` | счётчики | 1 час | 3/час на цель, 10/час на IP |
 | `otp:verification:<token>` | `{target, purpose}` | 10 мин | `otp/verify` → sign-up/sign-in/set-password |
@@ -226,7 +227,7 @@ sequenceDiagram
 - `POST /auth/verify-email/resend` всегда `202` — существование адреса не раскрывается;
 - опрос идемпотентен: повторное чтение события ничего не ломает (дедуп по `time:sub`).
 
-## 7. OTP по SMS (`/auth/otp/*`)
+## 7. OTP: код по SMS и обратный звонок (`/auth/otp/*`, `/auth/phone/call`)
 
 ```mermaid
 sequenceDiagram
@@ -244,7 +245,7 @@ sequenceDiagram
         API-->>FE: 409 ContactAlreadyExists
     else
         API->>API: код + Argon2id-хеш
-        API->>RD: otp:challenge:<id>, otp:active:<hash(target+purpose)>
+        API->>RD: otp:challenge:<id>, otp:active:<sha256(target|purpose)>
         opt purpose≠sign-in ИЛИ контакт существует
             API->>SMS: отправка кода
         end
@@ -264,6 +265,59 @@ sequenceDiagram
 - для `purpose=sign-in` ответ **всегда 200**, а SMS не уходит, если номера нет (нельзя узнать, зарегистрирован ли номер);
 - `verificationToken` одноразовый (`GETDEL`) и привязан к `target+purpose` — его предъявляют в `sign-up/phone`, `sign-in/phone`, `set-password`;
 - коды хранятся **хешем** — дамп Redis не даёт предъявить чужой код.
+
+### 7.1. Обратный звонок (ADR-0014)
+
+Второй канал подтверждения телефона: вместо кода пользователь звонит на номер, выданный провайдером (SMS.ru callcheck).
+Челлендж, лимиты и `verificationToken` — **те же**, что у SMS (`otp:challenge:*`, `otp:active:*`, `otp:verification:*`),
+поэтому каналы взаимозаменяемы и вытесняют друг друга на паре `(target, purpose)`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Клиент
+    participant API as OtpModule<br/>PhoneCallController
+    participant RD as Redis
+    participant PG as Postgres
+    participant P as SMS.ru callcheck
+
+    FE->>API: POST /auth/phone/call {phone, purpose}
+    API->>RD: лимиты (cooldown 60 с, 3/час номер, 10/час IP)
+    API->>PG: занят ли номер (CONTACT_LOOKUP)
+    alt purpose=sign-up и номер занят
+        API-->>FE: 409 ContactAlreadyExists
+    else проверка разрешена
+        API->>P: start (заявка callcheck) → callTo + check_id
+        alt провайдер недоступен
+            API-->>FE: 503 (челлендж не создан)
+        else заявка создана
+            API->>RD: otp:challenge:<id>, otp:active:<sha256(target|purpose)>, otp:call:<check_id>
+            API-->>FE: 200 {challengeId, method=call, callTo, expiresAt, otpFallback}
+        end
+    end
+
+    loop опрос фронта (не чаще 5 с) и вебхук провайдера
+        FE->>API: GET /auth/phone/call/:challengeId
+        API->>P: callcheck/status (авторизованный запрос)
+        alt статус verified
+            API->>RD: otp:claim:<id> = 1 (SET NX, 600 с) — токен выдаётся один раз
+            API-->>FE: 200 {status: verified, verificationToken}
+        else pending / expired / failed
+            API-->>FE: 200 {status: ...}
+        end
+    end
+
+    P-->>API: POST /callbacks/smsru (тело не доверенное)
+    Note over API,RD: из тела берутся только строки как подсказка (check_id),<br/>состояние всегда читается из callcheck/status
+```
+
+- `POST /auth/phone/call` и `GET /auth/phone/call/:challengeId` — `@Public()`, статус-эндпоинт всегда `200` со
+  `status` (`pending` | `verified` | `expired` | `failed`);
+- **вебхук не является источником истины**: тело провайдера не подписано и не документировано, из него берутся
+  только строковые кандидаты (`check_id`) как подсказка, а состояние читается авторизованным `callcheck/status`;
+- `otp:claim:<id>` (`SET NX`) закрывает гонку «вебхук + polling»: `verificationToken` выдаётся ровно один раз,
+  повторный `GET` отдаёт уже сохранённый;
+- окно звонка — **300 с** (`CALL_WINDOW_SECONDS`), минимальный интервал опроса — **5 с** (`CALL_POLL_MIN_SECONDS`).
 
 ## 8. Телефон: регистрация и вход через CIBA (ADR-0015)
 
@@ -319,7 +373,7 @@ sequenceDiagram
     API-->>FE: 200 {changeToken, requiresOldChallenge, newChallengeId, oldChallengeId}
 
     FE->>API: POST /users/me/contact-change/verify {changeToken, newCode, oldCode?}
-    API->>RD: запись смены (но TTL 10 мин) → ChangeTokenExpired
+    API->>RD: запись смены (и TTL 10 мин) → ChangeTokenExpired
     API->>RD: проверка обоих кодов (OtpInvalid / OtpExpired / OtpTooManyAttempts)
     API->>KC: RevokeUserAccess: logout всех сессий
     API->>RD: метка auth:sub-revoked:<sub>
@@ -505,7 +559,7 @@ flowchart LR
 | Вход/выход/токены | `auth/application/use-cases/{sign-in,refresh-token,sign-out,validate-token}`, `auth/infrastructure/keycloak/keycloak.adapter.ts` |
 | Проверка JWT и guard | `auth/infrastructure/keycloak/keycloak-jwt.verifier.ts`, `auth/interfaces/http/guards/jwt-auth.guard.ts` |
 | Отзыв доступа | `auth/application/use-cases/revoke-user-access`, `auth/infrastructure/redis/redis-token.store.ts` |
-| OTP и звонки | `modules/otp/**`, `otp/infrastructure/persistence/redis-otp-challenge.store.ts` |
+| OTP и звонки | `modules/otp/**`, `otp/infrastructure/persistence/redis-otp-challenge.store.ts`, `otp/application/services/phone-call-refresher.service.ts`, `otp/infrastructure/call/smsru-callcheck.provider.ts` |
 | CIBA | `auth/application/services/user-token-mint.service.ts`, `auth/infrastructure/keycloak/keycloak-ciba.adapter.ts`, `auth/application/use-cases/handle-ciba-channel-request` |
 | Смена контакта | `auth/application/use-cases/{request,verify,cancel}-contact-change`, `auth/infrastructure/redis/redis-change-token.store.ts` |
 | Пароли | `auth/application/use-cases/{request-reauth,change-password,set-password,forgot-password}` |
