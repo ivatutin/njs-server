@@ -88,7 +88,7 @@ flowchart LR
 | `auth:reauth-fail:<sub>` | счётчик неудач | 15 мин | brute-force на reauth (5 попыток) |
 | `otp:challenge:<id>` | снапшот челленджа | 5 мин (`OTP_TTL_SECONDS`) | `otp/send`, `otp/verify`, смена контакта |
 | `otp:active:<sha256(target\|purpose)>` | `id` активного челленджа | 5 мин | resend/перевыпуск; старт в любом канале вытесняет предыдущий |
-| `otp:call:<check_id>` | `id` челленджа | 5 мин (`CALL_WINDOW_SECONDS`) | обратный звонок: индекс `check_id` → челлендж (вебхук, webhook) |
+| `otp:call:<check_id>` | `id` челленджа | 5 мин (`CALL_WINDOW_SECONDS`) | обратный звонок: обратный индекс `check_id` → челлендж (читает вебхук провайдера) |
 | `otp:claim:<challengeId>` | `1` (флаг `SET NX`) | 10 мин (`VERIFICATION_TOKEN_TTL_SECONDS`) | звонок: гарантия, что `verificationToken` выдаётся **один раз** при гонке «вебхук + polling» |
 | `otp:rl:cooldown:<sha256(target)>` | `1` | 60 с | антиспам на цель |
 | `otp:rl:target:<sha256(target)>` / `otp:rl:ip:<ip>` | счётчики | 1 час | 3/час на цель, 10/час на IP |
